@@ -2,12 +2,13 @@ import os
 import random
 import re
 from PIL import Image, ImageDraw, ImageFont
-from util import read_entries_from_file, read_fonts_from_folder
+from src.obfuscation import generate_obfuscations
+from src.util import (
+    clean_filename,
+    read_entries_from_file, 
+    read_fonts_from_folder
+)
 
-
-def clean_filename(s):
-    """Clean string for safe filename usage by removing non-alphanumeric characters."""
-    return re.sub(r'\W+', '', s)
 
 def create_text_image(text, font_path, font_size=50, padding=20, bg_color='white', text_color='black', output_path='output.png'):
     """
@@ -25,11 +26,11 @@ def create_text_image(text, font_path, font_size=50, padding=20, bg_color='white
     
     dummy_img = Image.new('RGB', (1, 1), color=bg_color)
     draw = ImageDraw.Draw(dummy_img)
-    text_width, text_height = draw.textsize(text, font=font)
-    
+    text_bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = text_bbox[2] - text_bbox[0]  # right - left
+    text_height = text_bbox[3] - text_bbox[1]  # bottom - top
     img_width = text_width + 2 * padding
     img_height = text_height + 2 * padding
-    
     img = Image.new('RGB', (img_width, img_height), color=bg_color)
     draw = ImageDraw.Draw(img)
     draw.text((padding, padding), text, font=font, fill=text_color)

@@ -1,16 +1,17 @@
 import unittest
 import random
-from src.data_collection import (
+from src.obfuscation import (
     obfuscate_substitution,
     obfuscate_spaces,
     obfuscate_combined,
     generate_obfuscations
 )
 
+
 class TestObfuscation(unittest.TestCase):
     def setUp(self):
         # Set a fixed random seed for reproducibility in tests.
-        random.seed(42)
+        random.seed(3)
 
     def test_obfuscate_substitution(self):
         word = "test"

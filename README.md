@@ -14,17 +14,15 @@ This project is an MSc-level research endeavor conducted at University of Hertfo
 See directory-structure.md in the project root
 
 ### Installation
-##### Clone the Repository:  
-####
+##### Clone the Repository:
 ```
-git clone https://github.com/cs-amy/msc-project.git
+git clone https://github.com/cs-amy/project-codebase.git
 cd project-codebase
 ```
 
 ##### Create a Virtual Environment (using venv):
-####
 ```
-python -m venv venv
+python3 -m venv venv
 ```
 
 ##### Activate the environment:
@@ -33,28 +31,27 @@ python -m venv venv
 venv\Scripts\activate
 ```
 
-- On On macOS/Linux:
+- On macOS/Linux:
 ```
 source venv/bin/activate
 ```
 
 ##### Install Dependencies:
-####
 ```
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ### Usage
-##### Image Generation
-####
-```
-python src/image_generation.py
-```
+The following steps are included in the project:
+- Image Generation
+- Model Training & Evaluation
 
+##### Image Generation
 - Input Files:
     - data/profanities.txt: contains 40 profanities.
 - Output:
-    - Images are generated in the data/raw/ directory. With multi-case enabled and including obfuscations, each profanity word produces 16 images (4 case variants × 4 images per variant).
+    - Images are generated in the data/raw directory (not included in the repository due to its size). With multi-case enabled and including obfuscations, each profanity word produces 16 images (4 case variants × 4 images per variant).
+    - Sample images are provided in the data/raw_sample directory.
 
 ##### Model Training & Evaluation
 As the project evolves, the next steps will include:
@@ -65,7 +62,7 @@ As the project evolves, the next steps will include:
 
 These steps can be executed via the main entry point:
 ```
-python src/main.py
+python3 src/main.py
 ```
 
 ### Testing
@@ -75,7 +72,7 @@ pytest
 ```
 or
 ```
-python -m unittest discover
+python3 -m unittest discover
 ```
 
 ### Future Work
@@ -87,4 +84,5 @@ Upcoming steps include:
 - Comprehensive evaluation, error analysis, and report finalization.
 
 ### Notes
-This README will be updated continuously as the project progresses.
+- This README will be updated continuously as the project progresses.
+- You may encounter bugs (this is still a work in progress). Please report them to me. Thank you!

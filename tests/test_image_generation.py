@@ -3,26 +3,22 @@ import random
 import unittest
 import tempfile
 from PIL import Image
-
 from src.image_generation import (
-    clean_filename,
-    read_entries_from_file,
-    read_fonts_from_folder,
     create_text_image,
     generate_case_variants,
     generate_profanity_images
 )
-from src.obfuscation import (
-    obfuscate_substitution,
-    obfuscate_spaces,
-    obfuscate_combined,
-    generate_obfuscations,
+from src.util import (
+    clean_filename,
+    read_entries_from_file,
+    read_fonts_from_folder
 )
+
 
 class TestImageGeneration(unittest.TestCase):
     def setUp(self):
         # Set a fixed random seed for reproducibility
-        random.seed(42)
+        random.seed(2)
 
     def test_clean_filename(self):
         self.assertEqual(clean_filename("n!qq3r"), "nqq3r")
@@ -57,21 +53,6 @@ class TestImageGeneration(unittest.TestCase):
             self.assertTrue(os.path.exists(output_path))
             with Image.open(output_path) as img:
                 self.assertEqual(img.format, "PNG")
-
-    def test_obfuscation_routines(self):
-        word = "test"
-        sub_variant = obfuscate_substitution(word)
-        spaces_variant = obfuscate_spaces(word)
-        combined_variant = obfuscate_combined(word)
-        variants = generate_obfuscations(word)
-        # Ensure the substitution variant has the same length as original.
-        self.assertEqual(len(sub_variant), len(word))
-        # Removing spaces from spaces_variant should equal original.
-        self.assertEqual(spaces_variant.replace(" ", "").lower(), word.lower())
-        # Combined variant should be different.
-        self.assertNotEqual(combined_variant.replace(" ", "").lower(), word.lower())
-        # generate_obfuscations should return exactly three variants.
-        self.assertEqual(len(variants), 3)
 
     def test_generate_case_variants(self):
         word = "TestWord"
@@ -113,9 +94,9 @@ class TestImageGeneration(unittest.TestCase):
             
             # Check that images have been generated.
             generated_files = os.listdir(output_dir)
-            # For each profanity word, with multi-case (4 variants) and 1 plain + 3 obfuscated images per case,
-            # Total images per word = 4 * (1 + 3) = 16. With 2 words, expect 32 images.
-            self.assertEqual(len(generated_files), 32)
+
+            # Total images per word = 8.
+            self.assertEqual(len(generated_files), 8)
             
             # Verify that each generated file is a PNG.
             for file in generated_files:

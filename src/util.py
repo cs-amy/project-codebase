@@ -1,3 +1,11 @@
+import os
+import re
+
+
+def clean_filename(s):
+    """Clean string for safe filename usage by removing non-alphanumeric characters."""
+    return re.sub(r'\W+', '', s)
+
 def read_entries_from_file(filepath):
     """Reads entries from a file (one per line) and returns a list of entries."""
     if not os.path.exists(filepath):
