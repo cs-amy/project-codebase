@@ -1,14 +1,22 @@
 import random
+from typing import Dict, List
+
 
 # Define a dictionary for character substitution.
-SUBSTITUTIONS = {
+SUBSTITUTIONS: Dict[str, List[str]] = {
     'a': ['@', '4'],
+    'b': ['6'],
+    'c': ['¢'],
     'e': ['3'],
-    'i': ['!', '1'],
+    'g': ['9', 'q'],
+    'i': ['!'],
+    'l': ['1'],
     'o': ['0'],
+    'p': ['p'],
+    'q': ['9'],
     's': ['$', '5'],
-    'l': ['1', '|'],
-    't': ['7']
+    't': ['7'],
+    'z': ['2']
 }
 
 def obfuscate_substitution(word: str) -> str:

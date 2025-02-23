@@ -1,7 +1,6 @@
 import os
 import random
-import re
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont # type: ignore
 from obfuscation import generate_obfuscations
 from util import (
     clean_filename,
