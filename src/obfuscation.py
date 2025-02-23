@@ -1,5 +1,4 @@
 import random
-import re
 
 # Define a dictionary for character substitution.
 SUBSTITUTIONS = {

@@ -2,8 +2,8 @@ import os
 import random
 import re
 from PIL import Image, ImageDraw, ImageFont
-from src.obfuscation import generate_obfuscations
-from src.util import (
+from obfuscation import generate_obfuscations
+from util import (
     clean_filename,
     read_entries_from_file, 
     read_fonts_from_folder
@@ -81,13 +81,15 @@ def generate_profanity_images(profanities_file, fonts_folder, output_dir, includ
             cleaned_variant = clean_filename(variant_word)
             for font_path in font_paths:
                 font_name = clean_filename(os.path.splitext(os.path.basename(font_path))[0])
-                # Generate image for the plain variant.
+                # Generate image for the plain variant (white and black backgrounds).
                 output_file_plain = os.path.join(output_dir, f"{cleaned_variant}_{font_name}.png")
-                create_text_image(variant_word, font_path=font_path, output_path=output_file_plain)
+                create_text_image(variant_word, bg_color='white', text_color='black', font_path=font_path, output_path=f"{output_file_plain}_white.png")
+                create_text_image(variant_word, bg_color='black', text_color='white', font_path=font_path, output_path=f"{output_file_plain}_black.png")
                 
-                # If obfuscations are enabled, generate and save obfuscated variants.
+                # If obfuscations are enabled, generate and save obfuscated variants (white and black backgrounds).
                 if include_obfuscations:
                     obf_variants = generate_obfuscations(variant_word)
                     for idx, obf_variant in enumerate(obf_variants, start=1):
                         output_file_variant = os.path.join(output_dir, f"{cleaned_variant}_{font_name}_variant{idx}.png")
-                        create_text_image(obf_variant, font_path=font_path, output_path=output_file_variant)
+                        create_text_image(obf_variant, bg_color='white', text_color='black', font_path=font_path, output_path=f"{output_file_variant}_white.png")
+                        create_text_image(obf_variant, bg_color='black', text_color='white', font_path=font_path, output_path=f"{output_file_variant}_black.png")

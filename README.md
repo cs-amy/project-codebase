@@ -50,7 +50,7 @@ The following steps are included in the project:
 - Input Files:
     - data/profanities.txt: contains 40 profanities.
 - Output:
-    - Images are generated in the data/raw directory (not included in the repository due to its size). With multi-case enabled and including obfuscations, each profanity word produces 16 images (4 case variants × 4 images per variant).
+    - Images are generated in the data/raw directory (not included in the repository due to its size). With multi-case enabled and including obfuscations, each profanity word produces 40 images (white and black backgrounds), for a total of 1600 images.
     - Sample images are provided in the data/raw_sample directory.
 
 ##### Model Training & Evaluation
@@ -66,6 +66,14 @@ python3 src/main.py
 ```
 
 ### Testing
+Before running unit tests: 
+- Ensure that the virtual environment is activated.
+- Modify imports to use the local src directory (e.g. from src.image_generation import generate_profanity_images to image_generation.py).
+- Install pytest if not already installed:
+```
+pip3 install pytest
+```
+
 Run unit tests with:
 ```
 pytest

@@ -1,4 +1,4 @@
-from src.image_generation import generate_profanity_images
+from image_generation import generate_profanity_images
 
 def main():
     profanities_file = "data/profanities.txt"
