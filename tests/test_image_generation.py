@@ -95,8 +95,8 @@ class TestImageGeneration(unittest.TestCase):
             # Check that images have been generated.
             generated_files = os.listdir(output_dir)
 
-            # Total images per word = 16.
-            self.assertEqual(len(generated_files), 16)
+            # Total images per word = 64.
+            self.assertEqual(len(generated_files), 64)
             
             # Verify that each generated file is a PNG.
             for file in generated_files:

@@ -50,7 +50,7 @@ The following steps are included in the project:
 - Input Files:
     - data/profanities.txt: contains 40 profanities.
 - Output:
-    - Images are generated in the data/raw directory (not included in the repository due to its size). With multi-case enabled and including obfuscations, each profanity word produces 40 images (white and black backgrounds), for a total of 1600 images.
+    - Images are generated in the data/raw directory (not included in the repository due to its size). With multi-case enabled and including obfuscations, each profanity word produces several images (white and black, plain and noisy backgrounds), for a total of 3000+ images.
     - Sample images are provided in the data/raw_sample directory.
 
 ##### Model Training & Evaluation
@@ -90,6 +90,8 @@ Upcoming steps include:
 - Integrating and evaluating OCR pipelines with text classifiers.
 - Comprehensive evaluation, error analysis, and report finalization.
 
-### Notes
-- This README will be updated continuously as the project progresses.
-- You may encounter bugs (this is still a work in progress). Please report them to me. Thank you!
+### Important Notes
+- Python 3.9.6 was used to develop the project.
+- The image generation routine might be compute-intensive. It performed well on an 11-core CPU, 18GB RAM machine.
+- The codebase is not yet fully modularised.
+- You may encounter bugs (this is still a work in progress). If you find any, please report them to me. Thank you!

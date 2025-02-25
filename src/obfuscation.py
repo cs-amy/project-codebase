@@ -1,7 +1,6 @@
 import random
 from typing import Dict, List
 
-
 # Define a dictionary for character substitution.
 SUBSTITUTIONS: Dict[str, List[str]] = {
     'a': ['@', '4'],
@@ -23,6 +22,12 @@ def obfuscate_substitution(word: str) -> str:
     """
     Generate an obfuscated variant of a word by substituting characters based on SUBSTITUTIONS.
     Each character in the word is replaced with one of its substitutes.
+
+    Parameters:
+        word: str - The word to obfuscate.
+
+    Returns:
+        The obfuscated word.
     """
     obfuscated = []
     for char in word:
@@ -40,6 +45,12 @@ def obfuscate_spaces(word: str) -> str:
     """
     Generate an obfuscated variant of a word by randomly inserting spaces between characters.
     For each gap between characters, insert a space with a probability of 90%.
+
+    Parameters:
+        word: str - The word to obfuscate.
+
+    Returns:
+        The obfuscated word.
     """
     if len(word) < 2:
         return word  # No spaces to insert in single-character strings.
@@ -55,15 +66,24 @@ def obfuscate_combined(word: str) -> str:
     """
     Generate an obfuscated variant that applies both substitution and space insertion.
     First, substitute characters, then insert spaces.
+
+    Parameters:
+        word: str - The word to obfuscate.
+
+    Returns:
+        The obfuscated word.
     """
     substituted = obfuscate_substitution(word)
     return obfuscate_spaces(substituted)
 
-def generate_obfuscations(word: str) -> list:
+def generate_obfuscations(word: str) -> list[str]:
     """
     Given an unobfuscated word, generate a list of obfuscated variants using 
     the substitution, space insertion, and combination techniques.
-    
+
+    Parameters:
+        word: str - The word to obfuscate.
+
     Returns:
         A list containing three variants:
             - Variant with substitution only.
