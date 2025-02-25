@@ -2,7 +2,7 @@ import os
 import random
 import unittest
 import tempfile
-from PIL import Image
+from PIL import Image # type: ignore
 from src.image_generation import (
     create_text_image,
     generate_case_variants,
@@ -95,8 +95,8 @@ class TestImageGeneration(unittest.TestCase):
             # Check that images have been generated.
             generated_files = os.listdir(output_dir)
 
-            # Total images per word = 8.
-            self.assertEqual(len(generated_files), 8)
+            # Total images per word = 16.
+            self.assertEqual(len(generated_files), 16)
             
             # Verify that each generated file is a PNG.
             for file in generated_files:

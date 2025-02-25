@@ -1,8 +1,8 @@
 import os
 import random
 from PIL import Image, ImageDraw, ImageFont # type: ignore
-from obfuscation import generate_obfuscations
-from util import (
+from src.obfuscation import generate_obfuscations
+from src.util import (
     clean_filename,
     read_entries_from_file, 
     read_fonts_from_folder

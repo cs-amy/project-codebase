@@ -62,13 +62,12 @@ As the project evolves, the next steps will include:
 
 These steps can be executed via the main entry point:
 ```
-python3 src/main.py
+python3 -m src.main
 ```
 
 ### Testing
 Before running unit tests: 
 - Ensure that the virtual environment is activated.
-- Modify imports to use the local src directory (e.g. from src.image_generation import generate_profanity_images to image_generation.py).
 - Install pytest if not already installed:
 ```
 pip3 install pytest
