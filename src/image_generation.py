@@ -9,7 +9,7 @@ from util import (
 )
 
 
-def create_text_image(text, font_path, font_size=50, padding=20, bg_color='white', text_color='black', output_path='output.png'):
+def create_text_image(text, font_path, font_size=12, padding=20, bg_color='white', text_color='black', output_path='output.png'):
     """
     Generates an image with a single word (text) displayed using the specified font.
     """
