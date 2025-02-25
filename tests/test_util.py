@@ -2,13 +2,11 @@ import os
 import random
 import unittest
 import tempfile
-from PIL import Image
 from src.util import (
     clean_filename,
     read_entries_from_file,
     read_fonts_from_folder
 )
-
 
 class TestUtil(unittest.TestCase):
     def setUp(self):

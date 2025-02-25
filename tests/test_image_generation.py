@@ -14,7 +14,6 @@ from src.util import (
     read_fonts_from_folder
 )
 
-
 class TestImageGeneration(unittest.TestCase):
     def setUp(self):
         # Set a fixed random seed for reproducibility

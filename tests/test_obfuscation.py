@@ -7,7 +7,6 @@ from src.obfuscation import (
     generate_obfuscations
 )
 
-
 class TestObfuscation(unittest.TestCase):
     def setUp(self):
         # Set a fixed random seed for reproducibility in tests.
