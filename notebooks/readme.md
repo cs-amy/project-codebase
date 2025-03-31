@@ -1,1 +1,1 @@
-# This directory will store the project's jupyter notebooks
+# This directory stores the project's jupyter notebooks

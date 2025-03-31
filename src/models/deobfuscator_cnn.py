@@ -589,4 +589,4 @@ def get_model(
     else:
         raise ValueError(f"Unsupported model architecture: {model_name}")
     
-    return model 
+    return model

@@ -1,1 +1,1 @@
-# This directory will store trained models
+# This directory stores trained models

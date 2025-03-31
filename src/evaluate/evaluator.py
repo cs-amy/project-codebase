@@ -556,4 +556,4 @@ class Evaluator:
             'direct': cm_direct,
             'deobfuscated': cm_deobfuscated,
             'characters': unique_chars
-        } 
+        }

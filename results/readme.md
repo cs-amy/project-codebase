@@ -1,1 +1,1 @@
-# This directory will store the results obtained from model training
+# This directory stores the results obtained from model training

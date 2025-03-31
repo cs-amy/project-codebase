@@ -1,0 +1,41 @@
+# Training configuration for letter classifier
+
+data:
+  # Dataset paths
+  regular:
+    train_dir: "../data/characters/regular/train"
+    test_dir: "../data/characters/regular/test"
+  obfuscated:
+    train_dir: "../data/characters/obfuscated/train"
+    test_dir: "../data/characters/obfuscated/test"
+  
+  # Image settings
+  image_size: [28, 28]  # Input image size (height, width)
+  
+  # Dataset settings
+  train_split: 0.8     # Ratio of training data to use for validation
+
+training:
+  # Training parameters
+  epochs: 100
+  batch_size: 32
+  learning_rate: 0.001
+  optimizer: "adam"
+  num_workers: 4
+  seed: 42
+  
+  # Output directory
+  output_dir: "../outputs/letter_classifier"
+  
+  # Learning rate scheduler
+  lr_scheduler:
+    use: true
+    factor: 0.5
+    patience: 5
+    min_lr: 1e-6
+  
+  # Early stopping
+  early_stopping:
+    use: true
+    patience: 10
+    min_delta: 0.0001 

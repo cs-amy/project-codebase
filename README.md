@@ -28,110 +28,31 @@ The implementation is divided into two stages:
 ## Project Structure
 ```
 project-codebase/
-├── .venv/          # Virtual ensironment (untracked)
-├── configs/        # Configuration files for models and training
-├── data/           # Training, validation, and test datasets (untracked)
-├── fonts/          # Font lists for regular and obfuscated character generation
-├── models/         # Saved model checkpoints
-├── notebooks/      # Jupyter notebooks for exploration and visualization
-├── results/        # Evaluation results and comparisons
-├── scripts/        # Utility scripts for training, evaluation, and inference
+├── configs/          # Configuration files for models and training
+├── data/            # Training, validation, and test datasets (untracked)
+├── fonts/           # Font lists for regular and obfuscated character generation
+├── models/          # Saved model checkpoints
+├── notebooks/       # Jupyter notebooks for exploration and visualization
+├── outputs/         # Training outputs, checkpoints, and results
+├── results/         # Evaluation results and comparisons
+├── scripts/         # Utility scripts for training, evaluation, and inference
 │   ├── process_files.py          # Cleans up and renames files in directories
 │   ├── count_character_files.py  # Counts and reports file statistics
 │   ├── split_dataset.py          # Splits a dataset into train/test sets
 │   ├── remove_fonts.py           # Removes images with specific fonts from the dataset
 │   └── extract_fonts.py          # Extracts font information from image filenames
-├── src/            # Source code
-│   ├── data/       # Data loading and preprocessing modules
-│   ├── models/     # CNN architecture definitions
-│   ├── train/      # Training pipeline
-│   ├── evaluate/   # Evaluation metrics and pipeline
-│   └── utils/      # Utility functions
-├── tests/          # Unit tests for project components
-├── requirements.txt    # Python package dependencies
-├── .gitignore         # Git ignore rules
-├── .gitattributes     # Git attributes configuration
-└── LICENSE.md         # Project license information
+├── src/             # Source code
+│   ├── data/        # Data loading and preprocessing modules
+│   ├── models/      # CNN architecture definitions
+│   ├── train/       # Training pipeline
+│   ├── evaluate/    # Evaluation metrics and pipeline
+│   └── utils/       # Utility functions
+├── tests/           # Unit tests for project components
+├── requirements.txt     # Python package dependencies
+├── .gitignore          # Git ignore rules
+├── .gitattributes      # Git attributes configuration
+└── LICENSE.md          # Project license information
 ```
-
-## Key Components
-
-### Models
-
-
-### Training
-
-- **Trainer**: Handles the training loop, validation, checkpointing, and early stopping
-- **Loss Functions**: Various loss functions including BCE, Dice, SSIM, and combinations
-
-### Evaluation
-
-- **Evaluator**: Computes metrics on test set and creates visualizations
-- **Pipeline Comparison**: Compares OCR accuracy with and without deobfuscation
-- **Confusion Matrix**: Visualizes OCR errors for different characters
-
-### Inference
-
-- **Inference Script**: Processes new images with a trained model
-- **Visualization**: Creates side-by-side comparisons of input and output
-
-### Scripts
-
-The project includes several utility scripts for data preparation and model operation:
-
-- **process_files.py**: A utility script for cleaning up and organizing image directories. It removes non-PNG files (including .DS_Store files) and renames PNG files to a consistent three-digit numerical format (e.g., 001.png, 002.png). Can process directories recursively.
-  ```bash
-  # Process a single directory
-  python3.9 scripts/process_files.py --directory ./data/characters/regular
-  
-  # Process directory recursively
-  python3.9 scripts/process_files.py --directory ./data/characters --recursive
-  
-  # Process with sorting enabled
-  python3.9 scripts/process_files.py --directory ./data/characters --recursive --sort
-  ```
-
-- **count_character_files.py**: A script that analyzes and reports statistics about character image files in the dataset. It counts files in each character directory (a-z) for both regular and obfuscated datasets, and can display results in either a detailed format or a table format.
-  ```bash
-  # Display in default format
-  python3.9 scripts/count_character_files.py
-  
-  # Display in table format
-  python3.9 scripts/count_character_files.py --table
-  ```
-
-- **split_dataset.py**: A utility for creating a train/test split for the character dataset. It moves a portion of images from train to test directory while maintaining the same directory structure. The script processes each character directory separately to maintain balanced splits.
-  ```bash
-  # Split with default 80/20 ratio
-  python3.9 scripts/split_dataset.py --data_dir data/characters/regular
-  
-  # Split with custom test ratio
-  python3.9 scripts/split_dataset.py --data_dir data/characters/regular --test_ratio 0.25
-  
-  # Split with specific random seed
-  python3.9 scripts/split_dataset.py --data_dir data/characters/regular --seed 42
-  ```
-
-- **remove_fonts.py**: A script for removing obfuscated character images that use specific fonts. It searches through the obfuscated dataset and deletes images that contain any of the specified font names in their filenames. The script processes both train and test directories.
-  ```bash
-  # Remove default list of fonts
-  python3.9 scripts/remove_fonts.py
-  
-  # Remove specific fonts
-  python3.9 scripts/remove_fonts.py --fonts_to_remove "Arial" "Times New Roman"
-  ```
-
-- **extract_fonts.py**: A utility that extracts and compiles a list of all fonts used in the regular character dataset. It parses the filenames of images, extracts font information, and saves a list of unique fonts to a file.
-  ```bash
-  # Extract fonts from default directory
-  python3.9 scripts/extract_fonts.py
-  
-  # Extract fonts from specific directory
-  python3.9 scripts/extract_fonts.py --data_dir data/characters/regular/train
-  
-  # Extract fonts and save to specific file
-  python3.9 scripts/extract_fonts.py --output_file fonts_regular.txt
-  ```
 
 ## Getting Started
 
@@ -139,13 +60,9 @@ The project includes several utility scripts for data preparation and model oper
 
 1. Python 3.9
 2. PyTorch 2.0+
-3. TensorFlow 2.0+ (optional)
-4. Tesseract OCR engine (system dependency)
-   - Ubuntu/Debian: `sudo apt-get install tesseract-ocr`
-   - macOS: `brew install tesseract`
-   - Windows: Download and install from [GitHub](https://github.com/UB-Mannheim/tesseract/wiki)
-5. Download the regular character dataset from the link provided above
-6. Download all the fonts in the fonts/fonts_obfuscated.txt file on your computer
+3. TensorFlow 2.0+
+4. Download the regular character dataset from the link provided above
+5. Download all the fonts in the fonts/fonts_obfuscated.txt file on your computer
 
 ### Installation
 
@@ -170,6 +87,7 @@ The project includes several utility scripts for data preparation and model oper
    ```
 
 ## Usage
+We are in **Phase 1** of the project, concerned with character image recognition
 
 ### Character Dataset
 
@@ -227,8 +145,8 @@ data/
 │   │   └── test/     # Test set (~20%)
 │   ├── obfuscated/   # Obfuscated character images
 │   │   ├── train/    # Training set (~80%)
-│   │   └── test/
-│   └── obfuscated_backup/  # Backup of obfuscated data before cleaning
+│   │   └── test/     # Test set (~20%)
+│   
 └── words/            # Word-level examples
 
 fonts/
@@ -240,66 +158,176 @@ fonts/
 
 ##### Regular characters
 
-The regular character images should be downloaded from the source provided. After downloading the character set (a-z), 
+The regular character images should be downloaded from the source provided. After downloading, put all 26 character set (a-z, each of which is a folder containing png images of letters), into the `data/characters/regular/train` directory. Then, run this command to create a train-test split of the regular characters:
+
+```bash
+python3.9 scripts/split_dataset.py
+```
 
 ##### Obfuscated characters
 
-To generate a dataset of obfuscated character images, run:
+To generate an initial dataset of obfuscated character images, run:
 
 ```bash
+# Generate obfuscated character images in the `data/characters/obfuscated/train` directory
 python3.9 src/data/gen_obf_from_fontlist.py
-# This will generate the 
+
+# Create a train-test split of the obfuscated character images
+python3.9 scripts/split_dataset.py --data_dir data/characters/obfuscated
 ```
+
+(Optional) If you wish to generate more obfuscated images to bolster the dataset, including blurred, rotated character images, run the following command (NOTE: this could take several hours). The train-test split will be automatically created by the script.
 
 ```bash
-python3.9 scripts/generate_dataset.py --output_dir data/characters --num_samples 10000
+python3.9 src/data/gen_obf_from_regular.py
 ```
 
-Options:
-- `--output_dir`: Path to output directory
-- `--num_samples`: Number of samples to generate
-- `--image_size`: Size of the output images
-- `--train_ratio`: Ratio of training samples
-- `--val_ratio`: Ratio of validation samples
-- `--test_ratio`: Ratio of test samples
-
-After generating the dataset images, you should clean up the directories by removing any non-PNG files and renaming the PNG files to a consistent numerical format. You can do this by running:
+After generating the dataset images, you should clean up the character dataset directories by removing any non-PNG files and renaming the image files to a consistent numerical format. You can do this by running:
 
 ```bash
 python3.9 scripts/process_files.py --directory ./data/characters --recursive
 ```
 
 This will:
-1. Remove all non-PNG files (including .DS_Store files in MacOS)
+1. Remove all non-PNG files (including .DS_Store files, on MacOS)
 2. Rename all PNG files to a three-digit numerical format (001.png, 002.png, etc.)
-3. Process all subdirectories recursively
+3. Process all subdirectories in the same manner, recursively
+
+##### Useful Scripts
+
+The project includes several utility scripts for data preparation and model operation:
+
+- **process_files.py**: A utility script for cleaning up and organizing image directories. It removes non-PNG files (including .DS_Store files) and renames PNG files to a consistent three-digit numerical format (e.g., 001.png, 002.png). Can process directories recursively.
+  ```bash
+  # Process a single directory
+  python3.9 scripts/process_files.py --directory ./data/characters/regular
+  
+  # Process directory recursively
+  python3.9 scripts/process_files.py --directory ./data/characters --recursive
+  
+  # Process with sorting enabled
+  python3.9 scripts/process_files.py --directory ./data/characters --recursive --sort
+  ```
+
+- **count_character_files.py**: A script that analyzes and reports statistics about character image files in the dataset. It counts files in each character directory (a-z) for both regular and obfuscated datasets, and can display results in either a detailed format or a table format.
+  ```bash
+  # Display in default format
+  python3.9 scripts/count_character_files.py
+  
+  # Display in table format
+  python3.9 scripts/count_character_files.py --table
+  ```
+
+- **split_dataset.py**: A utility for creating a train/test split for the character dataset. It moves a portion of images from train to test directory while maintaining the same directory structure. The script processes each character directory separately to maintain balanced splits.
+  ```bash
+  # Split with default 80/20 ratio
+  python3.9 scripts/split_dataset.py --data_dir data/characters/regular
+  
+  # Split with custom test ratio
+  python3.9 scripts/split_dataset.py --data_dir data/characters/regular --test_ratio 0.25
+  
+  # Split with specific random seed
+  python3.9 scripts/split_dataset.py --data_dir data/characters/regular --seed 42
+  ```
+
+- **remove_fonts.py**: A script for removing obfuscated character images that use specific fonts. It searches through the obfuscated dataset and deletes images that contain any of the specified font names in their filenames. The script processes both train and test directories.
+  ```bash
+  # Remove default list of fonts
+  python3.9 scripts/remove_fonts.py
+  
+  # Remove specific fonts
+  python3.9 scripts/remove_fonts.py --fonts_to_remove "Arial" "Times New Roman"
+  ```
+
+- **extract_fonts.py**: A utility that extracts and compiles a list of all fonts used in the regular character dataset. It parses the filenames of images, extracts font information, and saves a list of unique fonts to a file.
+  ```bash
+  # Extract fonts from default directory
+  python3.9 scripts/extract_fonts.py
+  
+  # Extract fonts from specific directory
+  python3.9 scripts/extract_fonts.py --data_dir data/characters/regular/train
+  
+  # Extract fonts and save to specific file
+  python3.9 scripts/extract_fonts.py --output_file fonts_regular.txt
+  ```
 
 ### Training a Model
 
 To train a model:
 
 ```bash
-python scripts/train_model.py --config configs/model_config.yaml --data_dir data/characters --output_dir results
+python3.9 src/train/train_letter_classifier.py
 ```
 
-Options:
-- `--config`: Path to the config file
-- `--data_dir`: Path to the dataset directory
-- `--output_dir`: Path to the output directory
-- `--model_name`: Model architecture name (overrides config)
-- `--batch_size`: Batch size (overrides config)
-- `--epochs`: Number of epochs (overrides config)
-- `--learning_rate`: Learning rate (overrides config)
-- `--resume`: Path to checkpoint to resume training from
-- `--gpu`: Use GPU for training
-- `--seed`: Random seed
+The training script will:
+1. Load both regular and obfuscated character datasets
+2. Combine them into a single training set
+3. Split the combined dataset into train/validation sets
+4. Train the model with data augmentation
+5. Save checkpoints and visualizations in the `outputs/letter_classifier` directory
+
+During training, you'll see real-time progress information:
+```
+Loading datasets...
+- Regular dataset: 18,981 images
+- Obfuscated dataset: 19,385 images
+- Combined dataset: 38,366 images
+- Training set: 30,693 images (80%)
+- Validation set: 7,673 images (20%)
+
+Initializing model...
+- Input shape: [28, 28, 1]
+- Number of classes: 26 (a-z)
+- Model architecture: LetterClassifierCNN
+
+Starting training...
+Epoch 1/100
+[████████████████████████████████████████████████████] 100%
+Train Loss: 3.2589, Train Acc: 12.45%
+Val Loss: 3.1423, Val Acc: 14.32%
+Learning Rate: 0.001000
+
+Epoch 2/100
+[████████████████████████████████████████████████████] 100%
+Train Loss: 2.9876, Train Acc: 18.76%
+Val Loss: 2.8765, Val Acc: 20.12%
+Learning Rate: 0.001000
+...
+```
+
+The training progress includes:
+- Dataset loading statistics
+- Model initialization details
+- Progress bars for each epoch
+- Real-time loss and accuracy metrics
+- Current learning rate
+- Validation metrics after each epoch
+
+Additional visualizations are generated during training:
+- Confusion matrices (every 10 epochs)
+- Training history plots (loss, accuracy, learning rate)
+- Sample predictions for validation images
+
+The training configuration can be modified in `configs/train_config.yaml`. Key settings include:
+- Dataset paths (regular and obfuscated)
+- Image size and preprocessing
+- Training parameters (epochs, batch size, learning rate)
+- Learning rate scheduler settings
+- Early stopping configuration
+
+Training outputs include:
+- Model checkpoints (saved every 5 epochs)
+- Training history plots (loss, accuracy, learning rate)
+- Confusion matrices (generated every 10 epochs)
+- Final model weights
+- Detailed training logs in `outputs/letter_classifier/logs/`
 
 ### Evaluating a Model
 
 To evaluate a trained model:
 
 ```bash
-python scripts/evaluate_model.py --model_path results/run_TIMESTAMP/model_final.pth --config results/run_TIMESTAMP/config.yaml --data_dir data/characters
+python3.9 scripts/evaluate_model.py --model_path outputs/letter_classifier/model_final.pth --config configs/train_config.yaml --data_dir data/characters
 ```
 
 Options:
@@ -319,7 +347,7 @@ Options:
 To run inference on new images:
 
 ```bash
-python scripts/inference.py --model_path results/run_TIMESTAMP/model_final.pth --config results/run_TIMESTAMP/config.yaml --input path/to/image.png
+python3.9 models/inference.py --model_path outputs/letter_classifier/model_final.pth --config configs/train_config.yaml --input path/to/image.png
 ```
 
 Options:
@@ -334,42 +362,36 @@ Options:
 
 ### Testing
 
+TBC
 
 ## Configuration
 
-The model configuration is specified in YAML files in the `configs` directory. The main configuration file is `model_config.yaml`, which contains settings for:
+The model configuration is specified in YAML files in the `configs` directory. The main configuration file is `train_config.yaml`, which contains settings for:
 
-- **Model Architecture**: Type, input shape, filters, dropout, etc.
+- **Data**: Dataset paths, image size, train/validation split ratio
 - **Training**: Batch size, epochs, learning rate, optimizer, etc.
-- **Data**: Train/val/test split, augmentation, etc.
-- **Inference**: Confidence threshold, post-processing, etc.
+- **Learning Rate Scheduler**: Factor, patience, minimum learning rate
+- **Early Stopping**: Patience, minimum delta for improvement
 
 Example:
-
 ```yaml
-model:
-  name: "OCRDeobfuscatorCNN"
-  architecture: "unet"  # Options: "unet", "resnet", "autoencoder"
-  input_shape: [64, 64, 1]  # Height, Width, Channels
-  filters:
-    - 64
-    - 128
-    - 256
-    - 512
-  dropout_rate: 0.2
-  use_batch_norm: true
-  activation: "relu"
-  final_activation: "sigmoid"
+data:
+  regular:
+    train_dir: "../data/characters/regular/train"
+    test_dir: "../data/characters/regular/test"
+  obfuscated:
+    train_dir: "../data/characters/obfuscated/train"
+    test_dir: "../data/characters/obfuscated/test"
+  image_size: [28, 28]
+  train_split: 0.8
 
 training:
-  batch_size: 64
   epochs: 100
+  batch_size: 32
   learning_rate: 0.001
-  optimizer: "adam"  # Options: "adam", "sgd", "rmsprop"
+  optimizer: "adam"
   # ... more settings ...
 ```
-
-Character mappings for obfuscation are defined in `configs/character_mapping.yaml`. This file maps standard characters to their obfuscated variants, allowing for customization of the obfuscation patterns.
 
 ## Evaluation
 

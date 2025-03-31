@@ -16,10 +16,10 @@ from datetime import datetime
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
-from src.utils.config import load_config, get_model_config, get_training_config, get_data_config
-from src.data.data_loader import get_data_loaders
-from src.models.deobfuscator_cnn import get_model
-from src.train.trainer import Trainer
+from utils.config import load_config, get_model_config, get_training_config, get_data_config
+from data.data_loader import get_data_loaders
+from models.deobfuscator_cnn import get_model
+from trainer import Trainer
 
 # Configure logging
 logging.basicConfig(
@@ -70,6 +70,7 @@ def main():
     config_path = Path(args.config)
     if not config_path.exists():
         logger.error(f"Config file not found: {config_path}")
+        print(f"Config file not found: {config_path}")
         return
     
     config = load_config(config_path)
@@ -100,6 +101,7 @@ def main():
     
     # Create data loaders
     logger.info(f"Loading data from {args.data_dir}")
+    print(f"Loading data from {args.data_dir}")
     data_loaders = get_data_loaders(
         data_dir=args.data_dir,
         batch_size=training_config["batch_size"],
@@ -110,12 +112,13 @@ def main():
     
     # Create model
     logger.info(f"Creating model: {model_config['architecture']}")
+    print(f"Creating model: {model_config['architecture']}")
     model = get_model(model_config["architecture"], model_config)
     
     # Set device
     device = torch.device("cuda" if args.gpu and torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
-    
+    print(f"Using device: {device}")
     # Create trainer
     trainer = Trainer(
         model=model,
@@ -129,10 +132,12 @@ def main():
     # Resume training if requested
     if args.resume:
         logger.info(f"Resuming training from checkpoint: {args.resume}")
+        print(f"Resuming training from checkpoint: {args.resume}")
         trainer.load_checkpoint(args.resume)
     
     # Start training
     logger.info("Starting training...")
+    print("Starting training...")
     try:
         history = trainer.train()
         
@@ -142,16 +147,17 @@ def main():
             json.dump(history_serializable, f, indent=2)
         
         logger.info(f"Training completed, results saved to {output_dir}")
-    
+        print(f"Training completed, results saved to {output_dir}")
     except KeyboardInterrupt:
         logger.info("Training interrupted by user")
+        print("Training interrupted by user")
     except Exception as e:
         logger.exception(f"Error during training: {e}")
-    
+        print(f"Error during training: {e}")
     # Save final model regardless of how training ended
     trainer.save_model("final")
     logger.info(f"Final model saved to {output_dir}/model_final.pth")
-
+    print(f"Final model saved to {output_dir}/model_final.pth")
 
 if __name__ == "__main__":
-    main() 
+    main()

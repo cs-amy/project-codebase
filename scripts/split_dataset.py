@@ -7,7 +7,6 @@ the same directory structure.
 import os
 import random
 import shutil
-from pathlib import Path
 import argparse
 
 def parse_args():
@@ -68,4 +67,4 @@ def main():
     print(f"\nDone! Moved {moved_files} of {total_files} files to test set ({moved_files/total_files:.1%})")
 
 if __name__ == "__main__":
-    main() 
+    main()

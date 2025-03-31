@@ -1,5 +1,5 @@
 """
-Trainer module for training the deobfuscation model.
+Trainer module for training the letter classification model.
 """
 
 import os
@@ -16,6 +16,8 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from datetime import datetime
 from pathlib import Path
+from sklearn.metrics import confusion_matrix, classification_report
+import seaborn as sns
 
 from src.utils.config import load_config, get_training_config
 from src.models.losses import get_loss_function
@@ -73,13 +75,12 @@ class Trainer:
         self.epochs = config.get('epochs', 100)
         self.learning_rate = config.get('learning_rate', 0.001)
         self.optimizer_name = config.get('optimizer', 'adam').lower()
-        self.loss_name = config.get('loss', 'bce_dice').lower()
         
         # Setup optimizer
         self.optimizer = self._get_optimizer()
         
-        # Setup loss function
-        self.loss_fn = get_loss_function(self.loss_name)
+        # Setup loss function (CrossEntropyLoss for classification)
+        self.loss_fn = nn.CrossEntropyLoss()
         
         # Setup learning rate scheduler
         self.lr_scheduler = None
@@ -111,13 +112,15 @@ class Trainer:
         self.history = {
             'train_loss': [],
             'val_loss': [],
+            'train_acc': [],
+            'val_acc': [],
             'learning_rate': []
         }
         
         logger.info(f"Trainer initialized on device: {self.device}")
         logger.info(f"Model: {type(model).__name__}")
         logger.info(f"Optimizer: {self.optimizer_name}")
-        logger.info(f"Loss function: {self.loss_name}")
+        logger.info(f"Loss function: CrossEntropyLoss")
         logger.info(f"Learning rate: {self.learning_rate}")
         logger.info(f"Output directory: {self.output_dir}")
     
@@ -150,15 +153,17 @@ class Trainer:
         else:
             raise ValueError(f"Unsupported optimizer: {self.optimizer_name}")
     
-    def train_epoch(self) -> float:
+    def train_epoch(self) -> Tuple[float, float]:
         """
         Train the model for one epoch.
         
         Returns:
-            Average training loss for the epoch
+            Tuple of (average training loss, training accuracy)
         """
         self.model.train()
         total_loss = 0.0
+        correct = 0
+        total = 0
         
         # Use tqdm for progress tracking
         pbar = tqdm(enumerate(self.train_loader), total=len(self.train_loader))
@@ -183,27 +188,36 @@ class Trainer:
             # Update total loss
             total_loss += loss.item()
             
+            # Calculate accuracy
+            _, predicted = torch.max(outputs.data, 1)
+            total += targets.size(0)
+            correct += (predicted == targets).sum().item()
+            
             # Update progress bar
-            pbar.set_description(f"Train Loss: {loss.item():.4f}")
+            pbar.set_description(f"Train Loss: {loss.item():.4f}, Acc: {100*correct/total:.2f}%")
         
-        # Calculate average loss
+        # Calculate average loss and accuracy
         avg_loss = total_loss / len(self.train_loader)
+        accuracy = 100 * correct / total
         
-        return avg_loss
+        return avg_loss, accuracy
     
-    def validate(self) -> Tuple[float, List[torch.Tensor]]:
+    def validate(self) -> Tuple[float, float, np.ndarray, np.ndarray]:
         """
         Validate the model.
         
         Returns:
-            Tuple of (average validation loss, sample outputs)
+            Tuple of (average validation loss, validation accuracy, all predictions, all targets)
         """
         self.model.eval()
         total_loss = 0.0
-        samples = []
+        correct = 0
+        total = 0
+        all_preds = []
+        all_targets = []
         
         with torch.no_grad():
-            for batch_idx, (inputs, targets) in enumerate(self.val_loader):
+            for inputs, targets in self.val_loader:
                 # Move data to device
                 inputs = inputs.to(self.device)
                 targets = targets.to(self.device)
@@ -217,14 +231,42 @@ class Trainer:
                 # Update total loss
                 total_loss += loss.item()
                 
-                # Save some samples for visualization
-                if batch_idx == 0:
-                    samples = [inputs[:5].cpu(), targets[:5].cpu(), outputs[:5].cpu()]
+                # Calculate accuracy
+                _, predicted = torch.max(outputs.data, 1)
+                total += targets.size(0)
+                correct += (predicted == targets).sum().item()
+                
+                # Store predictions and targets
+                all_preds.extend(predicted.cpu().numpy())
+                all_targets.extend(targets.cpu().numpy())
         
-        # Calculate average loss
+        # Calculate average loss and accuracy
         avg_loss = total_loss / len(self.val_loader)
+        accuracy = 100 * correct / total
         
-        return avg_loss, samples
+        return avg_loss, accuracy, np.array(all_preds), np.array(all_targets)
+    
+    def plot_confusion_matrix(self, predictions: np.ndarray, targets: np.ndarray, epoch: int) -> None:
+        """
+        Plot and save confusion matrix.
+        
+        Args:
+            predictions: Array of predicted labels
+            targets: Array of true labels
+            epoch: Current epoch number
+        """
+        cm = confusion_matrix(targets, predictions)
+        plt.figure(figsize=(12, 8))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+        plt.title(f'Confusion Matrix - Epoch {epoch}')
+        plt.ylabel('True Label')
+        plt.xlabel('Predicted Label')
+        
+        # Save figure
+        cm_path = self.log_dir / f"confusion_matrix_epoch_{epoch}.png"
+        plt.savefig(cm_path, dpi=200, bbox_inches='tight')
+        plt.close()
+        logger.info(f"Confusion matrix saved to {cm_path}")
     
     def train(self) -> Dict[str, List[float]]:
         """
@@ -240,10 +282,10 @@ class Trainer:
             logger.info(f"Epoch {epoch}/{self.epochs}")
             
             # Train for one epoch
-            train_loss = self.train_epoch()
+            train_loss, train_acc = self.train_epoch()
             
             # Validate
-            val_loss, samples = self.validate()
+            val_loss, val_acc, predictions, targets = self.validate()
             
             # Save current learning rate
             current_lr = self.optimizer.param_groups[0]['lr']
@@ -251,18 +293,22 @@ class Trainer:
             # Update history
             self.history['train_loss'].append(train_loss)
             self.history['val_loss'].append(val_loss)
+            self.history['train_acc'].append(train_acc)
+            self.history['val_acc'].append(val_acc)
             self.history['learning_rate'].append(current_lr)
             
             # Log metrics
-            logger.info(f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, LR: {current_lr:.6f}")
+            logger.info(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
+            logger.info(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
+            logger.info(f"Learning Rate: {current_lr:.6f}")
             
             # Save checkpoint
             if epoch % 5 == 0 or epoch == self.epochs:
                 self.save_checkpoint(epoch)
             
-            # Save sample visualizations
+            # Plot confusion matrix
             if epoch % 10 == 0 or epoch == self.epochs:
-                self.save_samples(epoch, samples)
+                self.plot_confusion_matrix(predictions, targets, epoch)
             
             # Update learning rate scheduler
             if self.lr_scheduler is not None:
@@ -301,6 +347,8 @@ class Trainer:
             'optimizer_state_dict': self.optimizer.state_dict(),
             'train_loss': self.history['train_loss'][-1],
             'val_loss': self.history['val_loss'][-1],
+            'train_acc': self.history['train_acc'][-1],
+            'val_acc': self.history['val_acc'][-1],
             'learning_rate': self.optimizer.param_groups[0]['lr']
         }, checkpoint_path)
         logger.info(f"Checkpoint saved to {checkpoint_path}")
@@ -316,52 +364,12 @@ class Trainer:
         torch.save(self.model.state_dict(), model_path)
         logger.info(f"Model saved to {model_path}")
     
-    def save_samples(self, epoch: int, samples: List[torch.Tensor]) -> None:
-        """
-        Save sample visualizations.
-        
-        Args:
-            epoch: Current epoch
-            samples: List of [inputs, targets, outputs] tensors
-        """
-        if len(samples) != 3:
-            return
-        
-        inputs, targets, outputs = samples
-        
-        # Create figure with subplots
-        fig, axes = plt.subplots(3, 5, figsize=(15, 9))
-        fig.suptitle(f'Epoch {epoch}', fontsize=16)
-        
-        for i in range(5):
-            # Input images
-            axes[0, i].imshow(inputs[i].squeeze().numpy(), cmap='gray')
-            axes[0, i].set_title('Input (Obfuscated)')
-            axes[0, i].axis('off')
-            
-            # Target images
-            axes[1, i].imshow(targets[i].squeeze().numpy(), cmap='gray')
-            axes[1, i].set_title('Target (Standard)')
-            axes[1, i].axis('off')
-            
-            # Output images
-            axes[2, i].imshow(outputs[i].squeeze().numpy(), cmap='gray')
-            axes[2, i].set_title('Output (Deobfuscated)')
-            axes[2, i].axis('off')
-        
-        # Save figure
-        samples_path = self.sample_dir / f"samples_epoch_{epoch}.png"
-        plt.tight_layout()
-        plt.savefig(samples_path, dpi=200)
-        plt.close()
-        logger.info(f"Sample visualizations saved to {samples_path}")
-    
     def plot_history(self) -> None:
         """Plot training history."""
-        plt.figure(figsize=(10, 8))
+        plt.figure(figsize=(12, 8))
         
         # Plot loss curves
-        plt.subplot(2, 1, 1)
+        plt.subplot(2, 2, 1)
         plt.plot(self.history['train_loss'], label='Train Loss')
         plt.plot(self.history['val_loss'], label='Val Loss')
         plt.title('Loss Curves')
@@ -370,8 +378,18 @@ class Trainer:
         plt.legend()
         plt.grid(True)
         
+        # Plot accuracy curves
+        plt.subplot(2, 2, 2)
+        plt.plot(self.history['train_acc'], label='Train Acc')
+        plt.plot(self.history['val_acc'], label='Val Acc')
+        plt.title('Accuracy Curves')
+        plt.xlabel('Epoch')
+        plt.ylabel('Accuracy (%)')
+        plt.legend()
+        plt.grid(True)
+        
         # Plot learning rate
-        plt.subplot(2, 1, 2)
+        plt.subplot(2, 2, 3)
         plt.plot(self.history['learning_rate'])
         plt.title('Learning Rate')
         plt.xlabel('Epoch')
@@ -411,12 +429,18 @@ class Trainer:
                     self.history['train_loss'].append(0.0)
                 if len(self.history['val_loss']) < checkpoint['epoch']:
                     self.history['val_loss'].append(0.0)
+                if len(self.history['train_acc']) < checkpoint['epoch']:
+                    self.history['train_acc'].append(0.0)
+                if len(self.history['val_acc']) < checkpoint['epoch']:
+                    self.history['val_acc'].append(0.0)
                 if len(self.history['learning_rate']) < checkpoint['epoch']:
                     self.history['learning_rate'].append(0.0)
             
             # Update the last epoch values
             self.history['train_loss'][-1] = checkpoint['train_loss']
             self.history['val_loss'][-1] = checkpoint['val_loss']
+            self.history['train_acc'][-1] = checkpoint['train_acc']
+            self.history['val_acc'][-1] = checkpoint['val_acc']
             self.history['learning_rate'][-1] = checkpoint['learning_rate']
         
         logger.info(f"Loaded checkpoint from {checkpoint_path}")
