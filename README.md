@@ -52,6 +52,7 @@ project-codebase/
 ├── .gitignore          # Git ignore rules
 ├── .gitattributes      # Git attributes configuration
 └── LICENSE.md          # Project license information
+└── README.md          # Project information
 ```
 
 ## Getting Started
