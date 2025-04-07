@@ -1,86 +1,153 @@
 """
-CNN model for letter classification.
+CNN model architecture for character deobfuscation.
 """
 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Dict, Tuple, Optional
 
 class LetterClassifierCNN(nn.Module):
     """
-    CNN model for classifying letters in images.
-    Input: Single channel image (grayscale)
-    Output: 26-class prediction (a-z)
+    CNN architecture for deobfuscating characters.
+    
+    Architecture overview:
+    1. Feature Extraction: Multiple convolutional layers with increasing channels
+    2. Spatial Reduction: Max pooling layers to reduce dimensionality
+    3. Regularization: Dropout and batch normalization to prevent overfitting
+    4. Classification: Fully connected layers for final character prediction
     """
     
-    def __init__(self, input_shape=(64, 64), num_classes=26):
+    def __init__(
+        self,
+        input_shape: Tuple[int, int, int] = (28, 28, 1),
+        num_classes: int = 26,
+        dropout_rate: float = 0.5
+    ):
         """
-        Initialize the model.
+        Initialize the CNN model.
         
         Args:
-            input_shape: Tuple of (height, width) for input images
-            num_classes: Number of classes (default: 26 for a-z)
+            input_shape: Tuple of (height, width, channels)
+            num_classes: Number of output classes (26 for a-z)
+            dropout_rate: Dropout probability for regularization
         """
-        super(LetterClassifierCNN, self).__init__()
+        super().__init__()
         
-        # Calculate the size of the flattened features after convolutions
+        # Validate input shape
+        if len(input_shape) != 3:
+            raise ValueError("Input shape must be (height, width, channels)")
+        
         self.input_shape = input_shape
+        self.num_classes = num_classes
+        self.dropout_rate = dropout_rate
         
-        # Convolutional layers
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        # Feature extraction layers
+        self.features = nn.Sequential(
+            # First conv block: 32 filters, 3x3 kernel
+            nn.Conv2d(input_shape[2], 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Dropout2d(p=dropout_rate/2),
+            
+            # Second conv block: 64 filters, 3x3 kernel
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Dropout2d(p=dropout_rate/2),
+            
+            # Third conv block: 128 filters, 3x3 kernel
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Dropout2d(p=dropout_rate)
+        )
         
-        # Pooling layer
-        self.pool = nn.MaxPool2d(2, 2)
+        # Calculate size of flattened features
+        # After 3 max pooling layers with stride 2: input_dim / 8
+        feature_size = (input_shape[0] // 8) * (input_shape[1] // 8) * 128
         
-        # Dropout for regularization
-        self.dropout = nn.Dropout(0.5)
+        # Classification layers
+        self.classifier = nn.Sequential(
+            nn.Linear(feature_size, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=dropout_rate),
+            
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=dropout_rate),
+            
+            nn.Linear(256, num_classes)
+        )
         
-        # Calculate the size of flattened features
-        # After 3 pooling layers, the size is reduced by 2^3 = 8
-        self.flat_size = 128 * (input_shape[0] // 8) * (input_shape[1] // 8)
-        
-        # Fully connected layers
-        self.fc1 = nn.Linear(self.flat_size, 512)
-        self.fc2 = nn.Linear(512, num_classes)
+        # Initialize weights
+        self._initialize_weights()
     
-    def forward(self, x):
+    def _initialize_weights(self):
+        """Initialize model weights using He initialization."""
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.constant_(m.bias, 0)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Forward pass.
+        Forward pass of the model.
         
         Args:
-            x: Input tensor of shape (batch_size, 1, height, width)
-            
+            x: Input tensor of shape (batch_size, channels, height, width)
+        
         Returns:
-            Output tensor of shape (batch_size, num_classes)
+            Tensor of shape (batch_size, num_classes)
         """
-        # First convolutional block
-        x = self.pool(F.relu(self.conv1(x)))
-        
-        # Second convolutional block
-        x = self.pool(F.relu(self.conv2(x)))
-        
-        # Third convolutional block
-        x = self.pool(F.relu(self.conv3(x)))
+        # Feature extraction
+        x = self.features(x)
         
         # Flatten
-        x = x.view(-1, self.flat_size)
+        x = torch.flatten(x, 1)
         
-        # Fully connected layers with dropout
-        x = self.dropout(F.relu(self.fc1(x)))
-        x = self.fc2(x)
+        # Classification
+        x = self.classifier(x)
         
         return x
 
-def get_model(input_shape=(64, 64), num_classes=26):
+def get_model(architecture: str, config: Dict) -> nn.Module:
     """
-    Factory function to create the model.
+    Factory function to create a model instance.
     
     Args:
-        input_shape: Tuple of (height, width) for input images
-        num_classes: Number of classes (default: 26 for a-z)
-        
+        architecture: Name of the model architecture
+        config: Model configuration dictionary
+    
     Returns:
-        Initialized model
+        Instantiated model
     """
-    return LetterClassifierCNN(input_shape=input_shape, num_classes=num_classes) 
+    if architecture == "LetterClassifierCNN":
+        return LetterClassifierCNN(
+            input_shape=config.get("input_shape", (28, 28, 1)),
+            num_classes=config.get("num_classes", 26),
+            dropout_rate=config.get("dropout_rate", 0.5)
+        )
+    else:
+        raise ValueError(f"Unknown architecture: {architecture}") 

@@ -1,0 +1,62 @@
+# Test Configuration File
+# This file contains test-specific settings for unit tests
+
+# Model test configuration
+model:
+  input_channels: 1
+  num_classes: 26  # Full alphabet for production, 3 for testing
+  dropout_rates: [0.25, 0.25, 0.5, 0.5, 0.5]
+  image_size: [28, 28]
+
+# Data loader test configuration
+data:
+  test_data_dir: "tests/test_data"
+  batch_size: 2
+  num_workers: 0
+  augment: false
+  num_test_images: 5  # Number of test images per character
+  test_characters: ["a", "b", "c"]  # Characters to use in tests
+
+# Training test configuration
+training:
+  epochs: 2
+  batch_size: 2
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  early_stopping_patience: 2
+  scheduler:
+    factor: 0.5
+    patience: 2
+    min_lr: 0.00001
+
+# Evaluation test configuration
+evaluation:
+  confidence_threshold: 0.8
+  num_classes: 3  # For testing with subset of classes
+  metrics:
+    - accuracy
+    - per_class_accuracy
+    - confusion_matrix
+    - classification_report
+
+# Inference test configuration
+inference:
+  batch_size: 4
+  save_visualization: true
+  output_format: "png"
+  confidence_threshold: 0.8
+
+# Test environment configuration
+environment:
+  use_gpu: false
+  seed: 42
+  temp_dir: "tests/temp"
+  cleanup_after_test: true
+
+# Test data generation
+test_data:
+  image_size: [28, 28]
+  num_samples_per_class: 5
+  num_classes: 3
+  background_color: 0
+  foreground_color: 255 

@@ -1,41 +1,59 @@
 # Training configuration for letter classifier
 
+# Model Configuration
+model:
+  architecture: "LetterClassifierCNN"
+  input_shape: [28, 28, 1]  # Height, Width, Channels
+  num_classes: 26  # a-z
+  dropout_rate: 0.5
+
+# Training Configuration
+training:
+  epochs: 100
+  batch_size: 64  # Will be automatically adjusted based on available memory
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  optimizer: "adam"
+  scheduler:
+    use: true
+    type: "reduce_on_plateau"
+    patience: 5
+    factor: 0.5
+    min_lr: 0.00001
+  early_stopping:
+    use: true
+    patience: 15
+    min_delta: 0.001
+
+# Data Configuration
 data:
-  # Dataset paths
+  # Dataset paths (relative to project root)
   regular:
-    train_dir: "../data/characters/regular/train"
-    test_dir: "../data/characters/regular/test"
+    train_dir: "data/characters/regular/train"
+    test_dir: "data/characters/regular/test"
   obfuscated:
-    train_dir: "../data/characters/obfuscated/train"
-    test_dir: "../data/characters/obfuscated/test"
+    train_dir: "data/characters/obfuscated/train"
+    test_dir: "data/characters/obfuscated/test"
   
   # Image settings
   image_size: [28, 28]  # Input image size (height, width)
   
   # Dataset settings
-  train_split: 0.8     # Ratio of training data to use for validation
+  validation_split: 0.2  # Portion of training data to use for validation
+  shuffle: true
+  
+  # Data augmentation settings
+  augmentation:
+    use: true
+    rotation_range: 10
+    zoom_range: 0.1
+    width_shift_range: 0.1
+    height_shift_range: 0.1
+    brightness_range: [0.8, 1.2]
+    random_noise: 0.01
 
-training:
-  # Training parameters
-  epochs: 100
-  batch_size: 32
-  learning_rate: 0.001
-  optimizer: "adam"
-  num_workers: 4
-  seed: 42
-  
-  # Output directory
-  output_dir: "../outputs/letter_classifier"
-  
-  # Learning rate scheduler
-  lr_scheduler:
-    use: true
-    factor: 0.5
-    patience: 5
-    min_lr: 1e-6
-  
-  # Early stopping
-  early_stopping:
-    use: true
-    patience: 10
-    min_delta: 0.0001 
+# Output Configuration
+output:
+  dir: "outputs/letter_classifier"  # Relative to project root
+  save_frequency: 5  # Save checkpoint every N epochs
+  keep_best: true   # Keep best model based on validation loss

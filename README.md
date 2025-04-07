@@ -1,13 +1,60 @@
 # Enhancing OCR Accuracy Through CNN-Based Deobfuscation of Adversarial Text
 
 ## Overview
-This project implements a CNN-based deobfuscation system as a preprocessing step for Optical Character Recognition (OCR). The system is designed to counter adversarial text obfuscation techniques, where characters are deliberately transformed to confuse automated recognition while preserving human readability.
+This is an MSc Computer Science project that implements a CNN-based deobfuscation system as a preprocessing step for Optical Character Recognition (OCR). The system is designed to counter adversarial text obfuscation techniques, where characters are deliberately transformed to confuse automated recognition while preserving human readability.
 
 Common obfuscation techniques include:
 - Replacing letters with look-alike characters (e.g., '@' for 'a', '0' for 'o')
 - Using characters from other scripts or alphabets
 - Using symbols that visually resemble standard characters
 - Inserting zero-width spaces or other invisible characters
+
+### The Project at a Glance
+This project focuses on improving Optical Character Recognition (OCR) accuracy by tackling the challenge of adversarial text obfuscation. Here's a comprehensive overview:
+
+**Core Problem:**
+The project addresses a significant challenge in text recognition systems: deliberate text obfuscation. This is when text is intentionally modified to fool automated systems while remaining readable to humans, using techniques like character substitution, alternative scripts, and invisible characters.
+
+**Proposed Solution:**
+The project implements a novel two-stage approach:
+1. A CNN-based deobfuscation system as a preprocessing step
+2. Traditional OCR (Tesseract) for final text recognition
+
+The key innovation is using deep learning (specifically CNNs) to "normalize" obfuscated text before passing it to OCR, rather than trying to modify the OCR system itself.
+
+**Project Implementation:**
+The project is being developed in phases:
+- **Phase 1 (Current)**: Focusing on single-character deobfuscation
+- **Phase 2 (Planned)**: Extending to word-level deobfuscation
+
+**Dataset:**
+The project uses a comprehensive dataset consisting of:
+- Regular characters: ~19,000 images
+- Obfuscated characters: ~19,400 images
+- Split 80/20 for training/testing
+- Uses multiple fonts (164 regular fonts, 73 obfuscated fonts)
+- Includes both computer-generated and handwritten samples
+
+**Technical Architecture:**
+- Uses PyTorch for deep learning implementation
+- Implements a CNN-based architecture for deobfuscation
+- Includes comprehensive training, evaluation, and inference pipelines
+- Has robust data preprocessing and augmentation
+- Includes detailed evaluation metrics (pixel-level, OCR-specific, visual comparisons)
+
+**Academic Foundation:**
+The project builds on recent research in adversarial text and OCR robustness, citing works from:
+- Akhtar et al. (2022) on adversarial text obfuscation attacks
+- Song and Shmatikov (2018) on fooling OCR systems
+- Imam et al. (2022) on enhancing OCR robustness
+
+**Practical Applications:**
+This research has potentially significant real-world applications in:
+- Content moderation systems
+- Security measures
+- Automated data extraction
+- Anti-spam systems
+- Digital forensics
 
 ## Problem Statement
 OCR systems face challenges from adversarial text obfuscation—deliberate transformations that confuse automated recognition while preserving human readability. These manipulations hinder accurate text extraction, reducing the effectiveness of security measures, content moderation, and automated data extraction systems.
@@ -61,7 +108,14 @@ project-codebase/
 
 1. Python 3.9
 2. PyTorch 2.0+
-3. TensorFlow 2.0+
+3. Required Python packages (see requirements.txt):
+   - torch
+   - torchvision
+   - numpy
+   - matplotlib
+   - scikit-learn
+   - tqdm
+   - pyyaml
 4. Download the regular character dataset from the link provided above
 5. Download all the fonts in the fonts/fonts_obfuscated.txt file on your computer
 
@@ -144,16 +198,16 @@ data/
 │   ├── regular/      # Standard character images
 │   │   ├── train/    # Training set (~80%)
 │   │   └── test/     # Test set (~20%)
-│   ├── obfuscated/   # Obfuscated character images
-│   │   ├── train/    # Training set (~80%)
-│   │   └── test/     # Test set (~20%)
-│   
-└── words/            # Word-level examples
+│   └── obfuscated/   # Obfuscated character images
+│       ├── train/    # Training set (~80%)
+│       └── test/     # Test set (~20%)
 
 fonts/
 ├── fonts_regular.txt    # List of fonts used for regular characters
 └── fonts_obfuscated.txt # List of fonts used for obfuscated characters
 ```
+
+**Note**: The `words/` directory is reserved for Phase 2 of the project and is not currently used.
 
 #### Dataset Generation
 
@@ -252,22 +306,204 @@ The project includes several utility scripts for data preparation and model oper
   python3.9 scripts/extract_fonts.py --output_file fonts_regular.txt
   ```
 
-### Training a Model
+### Model Architecture
 
-To train a model:
+The project uses a deep Convolutional Neural Network (CNN) specifically designed for character deobfuscation. The architecture balances complexity with efficiency, using approximately 2.5M parameters.
 
-```bash
-python3.9 src/train/train_letter_classifier.py
+#### Network Structure
+
+**Input Layer**
+- Accepts 28x28x1 grayscale images
+- Normalized pixel values in range [0, 1]
+
+**Feature Extraction Blocks**
+1. **First Convolutional Block** (Input → 32 channels)
+   - Two Conv2D layers (3x3 kernel, padding=1)
+   - Batch Normalization after each conv
+   - ReLU activation
+   - MaxPool2D (2x2, stride=2)
+   - Light Dropout (rate=0.25)
+   - Output: 14x14x32
+
+2. **Second Convolutional Block** (32 → 64 channels)
+   - Two Conv2D layers (3x3 kernel, padding=1)
+   - Batch Normalization after each conv
+   - ReLU activation
+   - MaxPool2D (2x2, stride=2)
+   - Light Dropout (rate=0.25)
+   - Output: 7x7x64
+
+3. **Third Convolutional Block** (64 → 128 channels)
+   - Two Conv2D layers (3x3 kernel, padding=1)
+   - Batch Normalization after each conv
+   - ReLU activation
+   - MaxPool2D (2x2, stride=2)
+   - Standard Dropout (rate=0.5)
+   - Output: 3x3x128
+
+**Classification Layers**
+1. **Flatten Layer**
+   - Converts 3x3x128 feature maps to 1152-dimensional vector
+
+2. **First Dense Block** (1152 → 512)
+   - Linear transformation
+   - Batch Normalization
+   - ReLU activation
+   - Dropout (rate=0.5)
+
+3. **Second Dense Block** (512 → 256)
+   - Linear transformation
+   - Batch Normalization
+   - ReLU activation
+   - Dropout (rate=0.5)
+
+4. **Output Layer** (256 → 26)
+   - Linear transformation to class logits
+   - Output dimension: 26 (one per character)
+
+**Note**: The architecture is implemented in `src/models/letter_classifier.py` and can be configured through the YAML configuration file.
+
+#### Key Design Features
+
+1. **Progressive Feature Extraction**
+   - Gradually increases feature complexity (32 → 64 → 128 channels)
+   - Systematic spatial reduction (28x28 → 14x14 → 7x7 → 3x3)
+   - Maintains spatial information through padding
+
+2. **Regularization Strategy**
+   - Batch Normalization for stable training
+   - Progressive Dropout:
+     - Light in early layers (0.25)
+     - Heavier in later layers (0.5)
+   - Weight initialization using He normal distribution
+
+3. **Architectural Choices**
+   - Double convolution blocks inspired by VGG
+   - Skip connections within blocks for better gradient flow
+   - Balanced depth vs width for efficient learning
+
+#### Implementation Details
+
+```python
+# Feature extraction example (first block)
+nn.Sequential(
+    nn.Conv2d(1, 32, kernel_size=3, padding=1),
+    nn.BatchNorm2d(32),
+    nn.ReLU(inplace=True),
+    nn.Conv2d(32, 32, kernel_size=3, padding=1),
+    nn.BatchNorm2d(32),
+    nn.ReLU(inplace=True),
+    nn.MaxPool2d(kernel_size=2, stride=2),
+    nn.Dropout2d(p=0.25)
+)
+
+# Classification example (first dense block)
+nn.Sequential(
+    nn.Linear(1152, 512),
+    nn.BatchNorm1d(512),
+    nn.ReLU(inplace=True),
+    nn.Dropout(p=0.5)
+)
 ```
 
-The training script will:
-1. Load both regular and obfuscated character datasets
-2. Combine them into a single training set
-3. Split the combined dataset into train/validation sets
-4. Train the model with data augmentation
-5. Save checkpoints and visualizations in the `outputs/letter_classifier` directory
+#### Training Considerations
 
-During training, you'll see real-time progress information:
+- **Memory Efficiency**: ~2.5M parameters, suitable for GPU training
+- **Batch Size**: Recommended 32-128 depending on available memory
+- **Gradient Flow**: Good gradient propagation due to:
+  - Proper initialization
+  - Batch normalization
+  - Residual connections
+- **Regularization Balance**: Combined use of:
+  - Architectural regularization (depth)
+  - Explicit regularization (dropout)
+  - Implicit regularization (batch norm)
+
+### Training a Model
+
+#### Test Training
+Before running a full training session, it's recommended to run a test training to verify the entire pipeline:
+
+```bash
+python3.9 src/train/test_training.py
+```
+
+The test training script will:
+1. Create a small test dataset (100 samples per class for training, 20 for testing)
+2. Set up a test environment with proper directory structure
+3. Modify the configuration for quick testing:
+   - Reduced epochs (5)
+   - Smaller batch size (32)
+   - Shorter early stopping patience
+   - Separate output directory
+4. Run a complete training cycle with all components
+
+This helps verify:
+- Data loading and preprocessing
+- Model initialization
+- Training loop functionality
+- Checkpoint saving
+- Memory usage
+- GPU/CPU utilization
+
+Test results will be saved in `outputs/test_runs/` with a timestamp, allowing you to inspect the training artifacts without interfering with your main training outputs.
+
+#### Full Training
+
+To train a model, you'll need to:
+
+1. First ensure your data is properly organized in the `data/characters` directory:
+```
+data/characters/
+├── regular/
+│   ├── train/
+│   └── test/
+└── obfuscated/
+    ├── train/
+    └── test/
+```
+
+2. Run the training script:
+```bash
+python3.9 src/train/train.py
+```
+
+The training process will:
+
+1. **Data Loading**:
+   - Load both regular and obfuscated character datasets
+   - Apply data augmentation for training data (random rotation, affine transformations)
+   - Normalize images to [0, 1] range
+   - Convert images to grayscale
+
+2. **Model Training**:
+   - Train the model for the specified number of epochs
+   - Use Adam optimizer with configurable learning rate
+   - Apply learning rate scheduling (ReduceLROnPlateau)
+   - Implement early stopping to prevent overfitting
+
+3. **Monitoring and Visualization**:
+   - Display real-time progress bars with loss and accuracy
+   - Log training metrics after each epoch
+   - Generate training history plots (loss and accuracy curves)
+   - Create confusion matrices every 10 epochs
+   - Calculate and log per-character accuracy
+
+4. **Checkpointing**:
+   - Save model checkpoints every 5 epochs
+   - Keep track of the best model based on validation loss
+   - Save training history and optimizer state
+
+The training outputs will be saved in the specified output directory:
+```
+outputs/letter_classifier/
+├── best_model.pth           # Best model based on validation loss
+├── checkpoint_epoch_*.pth   # Regular checkpoints
+├── training_history.png     # Training curves
+└── confusion_matrix.png     # Final confusion matrix
+```
+
+Training progress will be displayed in real-time:
 ```
 Loading datasets...
 - Regular dataset: 18,981 images
@@ -296,39 +532,30 @@ Learning Rate: 0.001000
 ...
 ```
 
-The training progress includes:
-- Dataset loading statistics
-- Model initialization details
-- Progress bars for each epoch
-- Real-time loss and accuracy metrics
-- Current learning rate
-- Validation metrics after each epoch
-
-Additional visualizations are generated during training:
-- Confusion matrices (every 10 epochs)
-- Training history plots (loss, accuracy, learning rate)
-- Sample predictions for validation images
-
 The training configuration can be modified in `configs/train_config.yaml`. Key settings include:
-- Dataset paths (regular and obfuscated)
-- Image size and preprocessing
+- Dataset paths and image size
 - Training parameters (epochs, batch size, learning rate)
 - Learning rate scheduler settings
 - Early stopping configuration
+- Data augmentation parameters
 
-Training outputs include:
-- Model checkpoints (saved every 5 epochs)
-- Training history plots (loss, accuracy, learning rate)
-- Confusion matrices (generated every 10 epochs)
-- Final model weights
-- Detailed training logs in `outputs/letter_classifier/logs/`
+Training will automatically stop if:
+- The specified number of epochs is reached
+- Early stopping is triggered (no improvement for N epochs)
+- The minimum learning rate is reached
+
+After training completes, you'll find:
+- The best model saved as `best_model.pth`
+- Training history plots showing loss and accuracy curves
+- A final confusion matrix with per-character accuracy
+- Regular checkpoints for potential training resumption
 
 ### Evaluating a Model
 
 To evaluate a trained model:
 
 ```bash
-python3.9 scripts/evaluate_model.py --model_path outputs/letter_classifier/model_final.pth --config configs/train_config.yaml --data_dir data/characters
+python3.9 src/evaluate/evaluate.py --model_path outputs/letter_classifier/best_model.pth --config configs/train_config.yaml --data_dir data/characters
 ```
 
 Options:
@@ -336,82 +563,252 @@ Options:
 - `--config`: Path to the model config file
 - `--data_dir`: Path to the dataset directory
 - `--output_dir`: Path to the output directory
-- `--batch_size`: Batch size for evaluation
-- `--threshold`: Threshold for binarizing predictions
-- `--num_samples`: Number of sample visualizations to save
-- `--pipeline_comparison`: Perform OCR pipeline comparison
-- `--confusion_matrix`: Generate confusion matrix for OCR results
+- `--batch_size`: Batch size for evaluation (default: 32)
 - `--gpu`: Use GPU for evaluation
+
+The evaluation script will:
+1. Load the trained model
+2. Evaluate on the test dataset
+3. Generate and save:
+   - Confusion matrix
+   - Classification report
+   - Evaluation metrics (loss, accuracy)
+   - Detailed results in JSON format
 
 ### Running Inference
 
 To run inference on new images:
 
 ```bash
-python3.9 models/inference.py --model_path outputs/letter_classifier/model_final.pth --config configs/train_config.yaml --input path/to/image.png
+python3.9 src/inference/inference.py --model_path outputs/letter_classifier/best_model.pth --config configs/train_config.yaml --input path/to/image.png
 ```
 
 Options:
 - `--model_path`: Path to the trained model checkpoint
 - `--config`: Path to the model config file
 - `--input`: Path to input image or directory of images
-- `--output_dir`: Path to output directory
-- `--threshold`: Threshold for binarizing predictions
-- `--word_mode`: Process inputs as words instead of single characters
-- `--perform_ocr`: Perform OCR on the input and output images
+- `--output_dir`: Path to output directory (default: outputs/inference)
 - `--gpu`: Use GPU for inference
+
+The inference script will:
+1. Process single images or entire directories
+2. Generate predictions for each image
+3. Save results including:
+   - Input image with prediction overlay
+   - Confidence scores
+   - Detailed results in JSON format
+   - Visualizations in a dedicated directory
 
 ### Testing
 
-TBC
+The project includes comprehensive unit tests for all major components. The tests are organized in the `tests/` directory and use a centralized test configuration.
+
+#### Test Structure
+```
+tests/
+├── test_config.yaml        # Centralized test configuration
+├── test_utils.py          # Common test utilities
+├── test_data_loader.py    # Data loader tests
+├── test_model.py          # Model architecture tests
+├── test_trainer.py        # Training pipeline tests
+├── test_evaluation.py     # Evaluation metrics tests
+└── test_inference.py      # Inference functionality tests
+```
+
+#### Test Configuration
+The test configuration file (`test_config.yaml`) contains settings for:
+- Model parameters (input channels, number of classes, dropout rates)
+- Data loader settings (batch size, augmentation, test characters)
+- Training parameters (epochs, learning rate, early stopping)
+- Evaluation metrics and thresholds
+- Inference settings
+- Environment configuration (GPU usage, random seeds)
+- Test data generation parameters
+
+#### Running Tests
+
+1. Run all tests:
+```bash
+python -m unittest discover tests/
+```
+
+2. Run specific test file:
+```bash
+python -m unittest tests/test_model.py
+```
+
+3. Run with coverage report:
+```bash
+coverage run -m unittest discover tests/
+coverage report
+```
+
+#### Test Categories
+
+1. **Data Loader Tests**
+   - Dataset initialization
+   - Data augmentation
+   - Character mapping
+   - Batch loading
+   - Error handling
+
+2. **Model Tests**
+   - Architecture initialization
+   - Forward pass
+   - Gradient flow
+   - Parameter initialization
+   - Dropout behavior
+
+3. **Trainer Tests**
+   - Training loop
+   - Validation
+   - Checkpointing
+   - Early stopping
+   - Learning rate scheduling
+
+4. **Evaluation Tests**
+   - Confusion matrix generation
+   - Accuracy calculation
+   - Per-class metrics
+   - Result saving
+   - Visualization
+
+5. **Inference Tests**
+   - Image preprocessing
+   - Single/batch prediction
+   - Confidence thresholds
+   - Error handling
+   - Visualization generation
+
+#### Test Utilities
+
+The `test_utils.py` module provides common utilities for tests:
+- `load_test_config()`: Load test configuration
+- `setup_test_environment()`: Set up test environment with random seeds
+- `get_test_model()`: Create test model instance
+- `create_test_image()`: Generate test images
+- `get_test_batch()`: Create test batches
+
+#### Writing New Tests
+
+When adding new tests:
+1. Use the test configuration for parameters
+2. Follow the existing test structure
+3. Include proper setup and teardown
+4. Test both success and error cases
+5. Add docstrings for test methods
+6. Use the test utilities where appropriate
+
+Example:
+```python
+def test_new_feature(self):
+    """Test new feature functionality."""
+    # Use configuration
+    param = self.config['feature']['param']
+    
+    # Use test utilities
+    test_data = create_test_image(self.config)
+    
+    # Test the feature
+    result = self.feature(test_data, param)
+    
+    # Assert expected behavior
+    self.assertIsNotNone(result)
+    self.assertEqual(result.shape, expected_shape)
+```
 
 ## Configuration
 
 The model configuration is specified in YAML files in the `configs` directory. The main configuration file is `train_config.yaml`, which contains settings for:
 
-- **Data**: Dataset paths, image size, train/validation split ratio
-- **Training**: Batch size, epochs, learning rate, optimizer, etc.
-- **Learning Rate Scheduler**: Factor, patience, minimum learning rate
-- **Early Stopping**: Patience, minimum delta for improvement
+- **Model**: Architecture parameters, input shape, number of classes
+- **Training**: Batch size, epochs, learning rate, optimizer settings
+- **Data**: Dataset paths, image size, augmentation settings
+- **Output**: Directory settings, checkpoint frequency
 
 Example:
 ```yaml
-data:
-  regular:
-    train_dir: "../data/characters/regular/train"
-    test_dir: "../data/characters/regular/test"
-  obfuscated:
-    train_dir: "../data/characters/obfuscated/train"
-    test_dir: "../data/characters/obfuscated/test"
-  image_size: [28, 28]
-  train_split: 0.8
+model:
+  architecture: "LetterClassifierCNN"
+  input_shape: [28, 28, 1]  # Height, Width, Channels
+  num_classes: 26  # a-z
+  dropout_rate: 0.5
 
 training:
   epochs: 100
-  batch_size: 32
+  batch_size: 64
   learning_rate: 0.001
+  weight_decay: 0.0001
   optimizer: "adam"
-  # ... more settings ...
+  scheduler:
+    use: true
+    type: "reduce_on_plateau"
+    patience: 5
+    factor: 0.5
+    min_lr: 0.00001
+  early_stopping:
+    use: true
+    patience: 15
+    min_delta: 0.001
+
+data:
+  regular:
+    train_dir: "data/characters/regular/train"
+    test_dir: "data/characters/regular/test"
+  obfuscated:
+    train_dir: "data/characters/obfuscated/train"
+    test_dir: "data/characters/obfuscated/test"
+  image_size: [28, 28]
+  validation_split: 0.2
+  shuffle: true
+  augmentation:
+    use: true
+    rotation_range: 10
+    zoom_range: 0.1
+    width_shift_range: 0.1
+    height_shift_range: 0.1
+    brightness_range: [0.8, 1.2]
+    random_noise: 0.01
+
+output:
+  dir: "outputs/letter_classifier"
+  save_frequency: 5
+  keep_best: true
 ```
 
 ## Evaluation
 
-The system is evaluated by comparing two pipelines:
-1. Obfuscated text → Tesseract OCR
-2. Obfuscated text → CNN deobfuscator → Tesseract OCR
+The system is evaluated using multiple metrics and approaches:
 
-Performance metrics include:
-- Pixel-level metrics: accuracy, Dice coefficient, IoU, SSIM
-- OCR-specific metrics: character/word accuracy, string edit distance
-- Visual comparisons: side-by-side visualizations of original and deobfuscated text
+1. **Model Performance Metrics**:
+   - Classification accuracy (overall and per-character)
+   - Loss curves (training and validation)
+   - Confusion matrix
+   - Learning rate progression
 
-After training, results are saved in the specified output directory, including:
-- **Model Checkpoints**: Saved at regular intervals and at the end of training
-- **Training History**: Loss curves and learning rate
-- **Sample Visualizations**: Input, output, and target images
-- **Evaluation Metrics**: Detailed performance measurements
-- **Pipeline Comparison**: OCR accuracy with and without deobfuscation
-- **Confusion Matrices**: Visualization of OCR errors
+2. **OCR Pipeline Comparison**:
+   - Direct OCR on obfuscated text
+   - OCR after CNN deobfuscation
+   - Character-level accuracy comparison
+   - Word-level accuracy comparison (Phase 2)
+
+3. **Visual Analysis**:
+   - Sample predictions
+   - Confusion matrices
+   - Training history plots
+   - Learning rate schedules
+
+Evaluation results are saved in the specified output directory:
+```
+outputs/letter_classifier/
+├── best_model.pth           # Best model based on validation loss
+├── checkpoint_epoch_*.pth   # Regular checkpoints
+├── training_history.png     # Training curves
+├── confusion_matrix.png     # Final confusion matrix
+└── evaluation_results.json  # Detailed evaluation metrics
+```
+
+**Note**: The OCR pipeline comparison is currently implemented for character-level evaluation only. Word-level evaluation will be added in Phase 2.
 
 ## Academic References
 

@@ -1,26 +1,28 @@
 """
-Trainer module for training the letter classification model.
+Trainer module for training and validating the character classification model.
 """
 
-import os
-import time
+from pathlib import Path
+from typing import Dict, Optional, Tuple
+import logging
+
+# PyTorch imports
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from typing import Dict, List, Optional, Tuple, Union, Any
-import logging
-import numpy as np
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-from datetime import datetime
-from pathlib import Path
-from sklearn.metrics import confusion_matrix, classification_report
-import seaborn as sns
+from torch.utils.data import DataLoader
 
-from src.utils.config import load_config, get_training_config
-from src.models.losses import get_loss_function
+# Visualization imports
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+from tqdm import tqdm
+
+# Project imports
+from src.models.letter_classifier import LetterClassifierCNN
+from src.utils.config import load_config
+from src.data.data_loader import CharacterDataset
 
 # Configure logging
 logging.basicConfig(
@@ -30,470 +32,373 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class Trainer:
-    """Trainer class for handling model training."""
+class ModelTrainer:
+    """Trainer class for the character classification model."""
     
     def __init__(
         self,
-        model: nn.Module,
+        model: LetterClassifierCNN,
         train_loader: DataLoader,
-        val_loader: DataLoader,
-        config: Dict[str, Any],
-        output_dir: str,
-        device: Optional[torch.device] = None
+        test_loader: DataLoader,
+        config: Dict,
+        output_dir: str | Path,
+        device: Optional[str] = None
     ):
         """
         Initialize the trainer.
         
         Args:
-            model: PyTorch model to train
+            model: The model to train
             train_loader: DataLoader for training data
-            val_loader: DataLoader for validation data
+            test_loader: DataLoader for test data
             config: Training configuration dictionary
-            output_dir: Directory to save outputs (checkpoints, logs, etc.)
-            device: Device to train on (CPU or GPU)
+            output_dir: Directory to save checkpoints and results
+            device: Device to train on ('cuda' or 'cpu')
         """
         self.model = model
         self.train_loader = train_loader
-        self.val_loader = val_loader
+        self.test_loader = test_loader
         self.config = config
         self.output_dir = Path(output_dir)
-        self.device = device if device is not None else torch.device(
-            'cuda' if torch.cuda.is_available() else 'cpu'
-        )
+        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
         
-        # Create output directories
-        self.checkpoint_dir = self.output_dir / 'checkpoints'
-        self.log_dir = self.output_dir / 'logs'
-        self.sample_dir = self.output_dir / 'samples'
-        
-        os.makedirs(self.checkpoint_dir, exist_ok=True)
-        os.makedirs(self.log_dir, exist_ok=True)
-        os.makedirs(self.sample_dir, exist_ok=True)
-        
-        # Training parameters
-        self.epochs = config.get('epochs', 100)
-        self.learning_rate = config.get('learning_rate', 0.001)
-        self.optimizer_name = config.get('optimizer', 'adam').lower()
-        
-        # Setup optimizer
-        self.optimizer = self._get_optimizer()
-        
-        # Setup loss function (CrossEntropyLoss for classification)
-        self.loss_fn = nn.CrossEntropyLoss()
-        
-        # Setup learning rate scheduler
-        self.lr_scheduler = None
-        if config.get('lr_scheduler', {}).get('use', False):
-            scheduler_config = config['lr_scheduler']
-            self.lr_scheduler = ReduceLROnPlateau(
-                self.optimizer,
-                mode='min',
-                factor=scheduler_config.get('factor', 0.5),
-                patience=scheduler_config.get('patience', 5),
-                min_lr=scheduler_config.get('min_lr', 1e-6),
-                verbose=True
-            )
-        
-        # Early stopping
-        self.early_stopping = None
-        if config.get('early_stopping', {}).get('use', False):
-            es_config = config['early_stopping']
-            self.early_stopping = EarlyStopping(
-                patience=es_config.get('patience', 10),
-                min_delta=es_config.get('min_delta', 0.0001),
-                verbose=True
-            )
+        # Create output directory
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # Move model to device
-        self.model.to(self.device)
+        self.model = self.model.to(self.device)
+        
+        # Initialize loss function and optimizer
+        self.criterion = nn.CrossEntropyLoss()
+        self.optimizer = optim.Adam(
+            self.model.parameters(),
+            lr=config['training']['learning_rate']
+        )
+        
+        # Initialize learning rate scheduler
+        self.scheduler = ReduceLROnPlateau(
+            self.optimizer,
+            mode='min',
+            factor=config['training']['lr_scheduler']['factor'],
+            patience=config['training']['lr_scheduler']['patience'],
+            min_lr=config['training']['lr_scheduler']['min_lr']
+        )
+        
+        # Training state
+        self.best_val_loss = float('inf')
+        self.best_model_path = self.output_dir / 'best_model.pth'
+        self.patience_counter = 0
+        self.early_stopping_patience = config['training']['early_stopping']['patience']
         
         # Training history
         self.history = {
             'train_loss': [],
-            'val_loss': [],
             'train_acc': [],
+            'val_loss': [],
             'val_acc': [],
             'learning_rate': []
         }
         
-        logger.info(f"Trainer initialized on device: {self.device}")
-        logger.info(f"Model: {type(model).__name__}")
-        logger.info(f"Optimizer: {self.optimizer_name}")
-        logger.info(f"Loss function: CrossEntropyLoss")
-        logger.info(f"Learning rate: {self.learning_rate}")
-        logger.info(f"Output directory: {self.output_dir}")
-    
-    def _get_optimizer(self) -> optim.Optimizer:
-        """
-        Get optimizer based on configuration.
+        # Get character mappings
+        self.char_to_idx, self.idx_to_char = CharacterDataset.get_char_mapping()
         
-        Returns:
-            PyTorch optimizer
-        """
-        if self.optimizer_name == 'adam':
-            return optim.Adam(
-                self.model.parameters(),
-                lr=self.learning_rate,
-                betas=(0.9, 0.999)
-            )
-        elif self.optimizer_name == 'sgd':
-            return optim.SGD(
-                self.model.parameters(),
-                lr=self.learning_rate,
-                momentum=0.9,
-                weight_decay=1e-4
-            )
-        elif self.optimizer_name == 'rmsprop':
-            return optim.RMSprop(
-                self.model.parameters(),
-                lr=self.learning_rate,
-                weight_decay=1e-5
-            )
-        else:
-            raise ValueError(f"Unsupported optimizer: {self.optimizer_name}")
+        logger.info(f"Initialized trainer on device: {self.device}")
+        logger.info(f"Output directory: {self.output_dir}")
     
     def train_epoch(self) -> Tuple[float, float]:
         """
-        Train the model for one epoch.
+        Train for one epoch.
         
         Returns:
-            Tuple of (average training loss, training accuracy)
+            Tuple of (average loss, accuracy)
         """
         self.model.train()
-        total_loss = 0.0
+        total_loss = 0
         correct = 0
         total = 0
         
-        # Use tqdm for progress tracking
-        pbar = tqdm(enumerate(self.train_loader), total=len(self.train_loader))
-        for batch_idx, (inputs, targets) in pbar:
-            # Move data to device
-            inputs = inputs.to(self.device)
-            targets = targets.to(self.device)
+        progress_bar = tqdm(self.train_loader, desc='Training')
+        for batch_idx, (data, target) in enumerate(progress_bar):
+            data, target = data.to(self.device), target.to(self.device)
             
-            # Zero gradients
             self.optimizer.zero_grad()
+            output = self.model(data)
+            loss = self.criterion(output, target)
             
-            # Forward pass
-            outputs = self.model(inputs)
-            
-            # Calculate loss
-            loss = self.loss_fn(outputs, targets)
-            
-            # Backward pass and optimize
             loss.backward()
             self.optimizer.step()
             
-            # Update total loss
             total_loss += loss.item()
-            
-            # Calculate accuracy
-            _, predicted = torch.max(outputs.data, 1)
-            total += targets.size(0)
-            correct += (predicted == targets).sum().item()
+            _, predicted = output.max(1)
+            total += target.size(0)
+            correct += predicted.eq(target).sum().item()
             
             # Update progress bar
-            pbar.set_description(f"Train Loss: {loss.item():.4f}, Acc: {100*correct/total:.2f}%")
+            progress_bar.set_postfix({
+                'loss': f'{loss.item():.4f}',
+                'acc': f'{100.*correct/total:.2f}%'
+            })
         
-        # Calculate average loss and accuracy
         avg_loss = total_loss / len(self.train_loader)
-        accuracy = 100 * correct / total
+        accuracy = 100. * correct / total
         
         return avg_loss, accuracy
     
-    def validate(self) -> Tuple[float, float, np.ndarray, np.ndarray]:
+    def validate(self) -> Tuple[float, float]:
         """
         Validate the model.
         
         Returns:
-            Tuple of (average validation loss, validation accuracy, all predictions, all targets)
+            Tuple of (average loss, accuracy)
         """
         self.model.eval()
-        total_loss = 0.0
+        total_loss = 0
         correct = 0
         total = 0
+        
+        with torch.no_grad():
+            for data, target in tqdm(self.test_loader, desc='Validating'):
+                data, target = data.to(self.device), target.to(self.device)
+                output = self.model(data)
+                loss = self.criterion(output, target)
+                
+                total_loss += loss.item()
+                _, predicted = output.max(1)
+                total += target.size(0)
+                correct += predicted.eq(target).sum().item()
+        
+        avg_loss = total_loss / len(self.test_loader)
+        accuracy = 100. * correct / total
+        
+        return avg_loss, accuracy
+    
+    def save_checkpoint(self, epoch: int, is_best: bool = False) -> None:
+        """
+        Save a checkpoint of the model.
+        
+        Args:
+            epoch: Current epoch number
+            is_best: Whether this is the best model so far
+        """
+        checkpoint = {
+            'epoch': epoch,
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'scheduler_state_dict': self.scheduler.state_dict(),
+            'best_val_loss': self.best_val_loss,
+            'history': self.history
+        }
+        
+        # Save regular checkpoint
+        checkpoint_path = self.output_dir / f'checkpoint_epoch_{epoch}.pth'
+        torch.save(checkpoint, checkpoint_path)
+        
+        # Save best model if applicable
+        if is_best:
+            torch.save(checkpoint, self.best_model_path)
+            logger.info(f"Saved best model to {self.best_model_path}")
+    
+    def plot_training_history(self) -> None:
+        """Plot and save training history."""
+        plt.figure(figsize=(12, 4))
+        
+        # Plot loss
+        plt.subplot(1, 2, 1)
+        plt.plot(self.history['train_loss'], label='Train Loss')
+        plt.plot(self.history['val_loss'], label='Val Loss')
+        plt.title('Model Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.legend()
+        
+        # Plot accuracy
+        plt.subplot(1, 2, 2)
+        plt.plot(self.history['train_acc'], label='Train Acc')
+        plt.plot(self.history['val_acc'], label='Val Acc')
+        plt.title('Model Accuracy')
+        plt.xlabel('Epoch')
+        plt.ylabel('Accuracy (%)')
+        plt.legend()
+        
+        plt.tight_layout()
+        plt.savefig(self.output_dir / 'training_history.png')
+        plt.close()
+    
+    def plot_confusion_matrix(self) -> None:
+        """Plot and save confusion matrix with character labels."""
+        self.model.eval()
         all_preds = []
         all_targets = []
         
         with torch.no_grad():
-            for inputs, targets in self.val_loader:
-                # Move data to device
-                inputs = inputs.to(self.device)
-                targets = targets.to(self.device)
-                
-                # Forward pass
-                outputs = self.model(inputs)
-                
-                # Calculate loss
-                loss = self.loss_fn(outputs, targets)
-                
-                # Update total loss
-                total_loss += loss.item()
-                
-                # Calculate accuracy
-                _, predicted = torch.max(outputs.data, 1)
-                total += targets.size(0)
-                correct += (predicted == targets).sum().item()
-                
-                # Store predictions and targets
+            for data, target in self.test_loader:
+                data = data.to(self.device)
+                output = self.model(data)
+                _, predicted = output.max(1)
                 all_preds.extend(predicted.cpu().numpy())
-                all_targets.extend(targets.cpu().numpy())
+                all_targets.extend(target.numpy())
         
-        # Calculate average loss and accuracy
-        avg_loss = total_loss / len(self.val_loader)
-        accuracy = 100 * correct / total
+        cm = confusion_matrix(all_targets, all_preds)
         
-        return avg_loss, accuracy, np.array(all_preds), np.array(all_targets)
-    
-    def plot_confusion_matrix(self, predictions: np.ndarray, targets: np.ndarray, epoch: int) -> None:
-        """
-        Plot and save confusion matrix.
+        # Create figure with larger size
+        plt.figure(figsize=(15, 12))
         
-        Args:
-            predictions: Array of predicted labels
-            targets: Array of true labels
-            epoch: Current epoch number
-        """
-        cm = confusion_matrix(targets, predictions)
-        plt.figure(figsize=(12, 8))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-        plt.title(f'Confusion Matrix - Epoch {epoch}')
-        plt.ylabel('True Label')
-        plt.xlabel('Predicted Label')
+        # Create heatmap
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt='d',
+            cmap='Blues',
+            xticklabels=[self.idx_to_char[i] for i in range(26)],
+            yticklabels=[self.idx_to_char[i] for i in range(26)]
+        )
         
-        # Save figure
-        cm_path = self.log_dir / f"confusion_matrix_epoch_{epoch}.png"
-        plt.savefig(cm_path, dpi=200, bbox_inches='tight')
-        plt.close()
-        logger.info(f"Confusion matrix saved to {cm_path}")
-    
-    def train(self) -> Dict[str, List[float]]:
-        """
-        Train the model for the specified number of epochs.
+        plt.title('Confusion Matrix')
+        plt.xlabel('Predicted Character')
+        plt.ylabel('True Character')
+        plt.xticks(rotation=45)
+        plt.yticks(rotation=0)
         
-        Returns:
-            Training history
-        """
-        logger.info(f"Starting training for {self.epochs} epochs...")
-        start_time = time.time()
-        
-        for epoch in range(1, self.epochs + 1):
-            logger.info(f"Epoch {epoch}/{self.epochs}")
-            
-            # Train for one epoch
-            train_loss, train_acc = self.train_epoch()
-            
-            # Validate
-            val_loss, val_acc, predictions, targets = self.validate()
-            
-            # Save current learning rate
-            current_lr = self.optimizer.param_groups[0]['lr']
-            
-            # Update history
-            self.history['train_loss'].append(train_loss)
-            self.history['val_loss'].append(val_loss)
-            self.history['train_acc'].append(train_acc)
-            self.history['val_acc'].append(val_acc)
-            self.history['learning_rate'].append(current_lr)
-            
-            # Log metrics
-            logger.info(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
-            logger.info(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
-            logger.info(f"Learning Rate: {current_lr:.6f}")
-            
-            # Save checkpoint
-            if epoch % 5 == 0 or epoch == self.epochs:
-                self.save_checkpoint(epoch)
-            
-            # Plot confusion matrix
-            if epoch % 10 == 0 or epoch == self.epochs:
-                self.plot_confusion_matrix(predictions, targets, epoch)
-            
-            # Update learning rate scheduler
-            if self.lr_scheduler is not None:
-                self.lr_scheduler.step(val_loss)
-            
-            # Check early stopping
-            if self.early_stopping is not None:
-                should_stop = self.early_stopping.step(val_loss)
-                if should_stop:
-                    logger.info(f"Early stopping triggered after {epoch} epochs")
-                    break
-        
-        # Calculate training time
-        total_time = time.time() - start_time
-        logger.info(f"Training completed in {total_time:.2f} seconds")
-        
-        # Save final model
-        self.save_model('final')
-        
-        # Plot training history
-        self.plot_history()
-        
-        return self.history
-    
-    def save_checkpoint(self, epoch: int) -> None:
-        """
-        Save a model checkpoint.
-        
-        Args:
-            epoch: Current epoch
-        """
-        checkpoint_path = self.checkpoint_dir / f"checkpoint_epoch_{epoch}.pth"
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'train_loss': self.history['train_loss'][-1],
-            'val_loss': self.history['val_loss'][-1],
-            'train_acc': self.history['train_acc'][-1],
-            'val_acc': self.history['val_acc'][-1],
-            'learning_rate': self.optimizer.param_groups[0]['lr']
-        }, checkpoint_path)
-        logger.info(f"Checkpoint saved to {checkpoint_path}")
-    
-    def save_model(self, name: str) -> None:
-        """
-        Save the model.
-        
-        Args:
-            name: Name identifier for the saved model
-        """
-        model_path = self.output_dir / f"model_{name}.pth"
-        torch.save(self.model.state_dict(), model_path)
-        logger.info(f"Model saved to {model_path}")
-    
-    def plot_history(self) -> None:
-        """Plot training history."""
-        plt.figure(figsize=(12, 8))
-        
-        # Plot loss curves
-        plt.subplot(2, 2, 1)
-        plt.plot(self.history['train_loss'], label='Train Loss')
-        plt.plot(self.history['val_loss'], label='Val Loss')
-        plt.title('Loss Curves')
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
-        plt.legend()
-        plt.grid(True)
-        
-        # Plot accuracy curves
-        plt.subplot(2, 2, 2)
-        plt.plot(self.history['train_acc'], label='Train Acc')
-        plt.plot(self.history['val_acc'], label='Val Acc')
-        plt.title('Accuracy Curves')
-        plt.xlabel('Epoch')
-        plt.ylabel('Accuracy (%)')
-        plt.legend()
-        plt.grid(True)
-        
-        # Plot learning rate
-        plt.subplot(2, 2, 3)
-        plt.plot(self.history['learning_rate'])
-        plt.title('Learning Rate')
-        plt.xlabel('Epoch')
-        plt.ylabel('Learning Rate')
-        plt.grid(True)
-        plt.yscale('log')
-        
-        # Save figure
-        history_path = self.log_dir / "training_history.png"
+        # Adjust layout to prevent label cutoff
         plt.tight_layout()
-        plt.savefig(history_path, dpi=200)
+        
+        # Save figure with high DPI
+        plt.savefig(self.output_dir / 'confusion_matrix.png', dpi=300, bbox_inches='tight')
         plt.close()
-        logger.info(f"Training history plot saved to {history_path}")
+        
+        # Log per-character accuracy
+        char_acc = cm.diagonal() / cm.sum(axis=1)
+        logger.info("\nPer-character accuracy:")
+        for i, acc in enumerate(char_acc):
+            logger.info(f"{self.idx_to_char[i]}: {acc*100:.2f}%")
     
-    def load_checkpoint(self, checkpoint_path: Union[str, Path]) -> int:
+    def load_checkpoint(self, checkpoint_path: str | Path) -> int:
         """
-        Load a model checkpoint.
+        Load a checkpoint and restore training state.
         
         Args:
             checkpoint_path: Path to the checkpoint file
             
         Returns:
-            Epoch number of the loaded checkpoint
+            The epoch number of the loaded checkpoint
         """
         checkpoint_path = Path(checkpoint_path)
         if not checkpoint_path.exists():
             raise FileNotFoundError(f"Checkpoint file not found: {checkpoint_path}")
         
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        
+        # Load model state
         self.model.load_state_dict(checkpoint['model_state_dict'])
+        
+        # Load optimizer state
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         
-        # Update history if available
-        if 'epoch' in checkpoint and checkpoint['epoch'] > 0:
-            for _ in range(checkpoint['epoch']):
-                if len(self.history['train_loss']) < checkpoint['epoch']:
-                    self.history['train_loss'].append(0.0)
-                if len(self.history['val_loss']) < checkpoint['epoch']:
-                    self.history['val_loss'].append(0.0)
-                if len(self.history['train_acc']) < checkpoint['epoch']:
-                    self.history['train_acc'].append(0.0)
-                if len(self.history['val_acc']) < checkpoint['epoch']:
-                    self.history['val_acc'].append(0.0)
-                if len(self.history['learning_rate']) < checkpoint['epoch']:
-                    self.history['learning_rate'].append(0.0)
-            
-            # Update the last epoch values
-            self.history['train_loss'][-1] = checkpoint['train_loss']
-            self.history['val_loss'][-1] = checkpoint['val_loss']
-            self.history['train_acc'][-1] = checkpoint['train_acc']
-            self.history['val_acc'][-1] = checkpoint['val_acc']
-            self.history['learning_rate'][-1] = checkpoint['learning_rate']
+        # Load scheduler state
+        self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+        
+        # Load training state
+        self.best_val_loss = checkpoint['best_val_loss']
+        self.history = checkpoint['history']
         
         logger.info(f"Loaded checkpoint from {checkpoint_path}")
-        return checkpoint.get('epoch', 0)
-
-
-class EarlyStopping:
-    """Early stopping to prevent overfitting."""
+        logger.info(f"Resuming from epoch {checkpoint['epoch']}")
+        
+        return checkpoint['epoch']
     
-    def __init__(self, patience: int = 10, min_delta: float = 0.0, verbose: bool = False):
+    def train(self, num_epochs: int) -> None:
         """
-        Initialize early stopping.
+        Train the model.
         
         Args:
-            patience: Number of epochs to wait after last improvement
-            min_delta: Minimum change to qualify as an improvement
-            verbose: Whether to print messages
+            num_epochs: Number of epochs to train for
         """
-        self.patience = patience
-        self.min_delta = min_delta
-        self.verbose = verbose
-        self.best_score = None
-        self.counter = 0
-    
-    def step(self, val_loss: float) -> bool:
-        """
-        Update early stopping state.
+        logger.info("Starting training...")
         
-        Args:
-            val_loss: Validation loss
+        for epoch in range(1, num_epochs + 1):
+            logger.info(f"\nEpoch {epoch}/{num_epochs}")
             
-        Returns:
-            True if training should stop, False otherwise
-        """
-        if self.best_score is None:
-            self.best_score = val_loss
-            return False
+            # Train and validate
+            train_loss, train_acc = self.train_epoch()
+            val_loss, val_acc = self.validate()
+            
+            # Update learning rate
+            self.scheduler.step(val_loss)
+            current_lr = self.optimizer.param_groups[0]['lr']
+            
+            # Log metrics
+            logger.info(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
+            logger.info(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
+            logger.info(f"Learning Rate: {current_lr:.6f}")
+            
+            # Update history
+            self.history['train_loss'].append(train_loss)
+            self.history['train_acc'].append(train_acc)
+            self.history['val_loss'].append(val_loss)
+            self.history['val_acc'].append(val_acc)
+            self.history['learning_rate'].append(current_lr)
+            
+            # Save checkpoint if best model
+            is_best = val_loss < self.best_val_loss
+            if is_best:
+                self.best_val_loss = val_loss
+                self.patience_counter = 0
+            else:
+                self.patience_counter += 1
+            
+            # Save checkpoint every 5 epochs
+            if epoch % 5 == 0:
+                self.save_checkpoint(epoch, is_best)
+            
+            # Plot confusion matrix every 10 epochs
+            if epoch % 10 == 0:
+                self.plot_confusion_matrix()
+            
+            # Early stopping
+            if self.patience_counter >= self.early_stopping_patience:
+                logger.info(f"Early stopping triggered after {epoch} epochs")
+                break
         
-        if val_loss < self.best_score - self.min_delta:
-            # Performance improved
-            self.best_score = val_loss
-            self.counter = 0
-            return False
+        # Save final plots and checkpoint
+        self.plot_training_history()
+        self.plot_confusion_matrix()
+        self.save_checkpoint(num_epochs)
         
-        # Performance did not improve
-        self.counter += 1
-        if self.verbose:
-            logger.info(f"Early stopping counter: {self.counter}/{self.patience}")
-        
-        if self.counter >= self.patience:
-            if self.verbose:
-                logger.info("Early stopping triggered")
-            return True
-        
-        return False
+        logger.info("Training completed!")
+
+
+def train_model(
+    model: LetterClassifierCNN,
+    train_loader: DataLoader,
+    test_loader: DataLoader,
+    config_path: str | Path,
+    output_dir: str | Path,
+    device: Optional[str] = None
+) -> None:
+    """
+    Train a model using the specified configuration.
+    
+    Args:
+        model: The model to train
+        train_loader: DataLoader for training data
+        test_loader: DataLoader for test data
+        config_path: Path to the configuration file
+        output_dir: Directory to save checkpoints and results
+        device: Device to train on ('cuda' or 'cpu')
+    """
+    # Load configuration
+    config = load_config(config_path)
+    
+    # Create trainer
+    trainer = ModelTrainer(
+        model=model,
+        train_loader=train_loader,
+        test_loader=test_loader,
+        config=config,
+        output_dir=output_dir,
+        device=device
+    )
+    
+    # Train the model
+    trainer.train(num_epochs=config['training']['epochs'])
     

@@ -12,83 +12,88 @@ import logging
 from typing import Dict, Any
 import json
 import copy
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-def load_config(config_path: str) -> Dict[str, Any]:
+def load_config(config_path: str | Path) -> Dict[str, Any]:
     """
     Load configuration from a YAML file.
     
     Args:
-        config_path (str): Path to the configuration file.
+        config_path: Path to the configuration file
         
     Returns:
-        Dict[str, Any]: Dictionary containing the configuration.
-        
-    Raises:
-        FileNotFoundError: If the configuration file is not found.
-        yaml.YAMLError: If the YAML file is malformed.
+        Dictionary containing configuration settings
     """
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f)
-        
-        logger.info(f"Loaded configuration from {config_path}")
-        return config
-    except FileNotFoundError:
-        logger.error(f"Configuration file not found: {config_path}")
-        raise
-    except yaml.YAMLError as e:
-        logger.error(f"Error parsing configuration file: {e}")
-        raise
+    config_path = Path(config_path)
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+    
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+    
+    return config
 
 def get_model_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Extract model configuration from the full configuration.
+    Extract model-specific configuration.
     
     Args:
-        config (Dict[str, Any]): Full configuration dictionary.
+        config: Full configuration dictionary
         
     Returns:
-        Dict[str, Any]: Model configuration section.
+        Model configuration dictionary
     """
     if 'model' not in config:
-        logger.warning("Model configuration section not found in config")
-        return {}
+        raise KeyError("Model configuration not found in config file")
     
     return config['model']
 
 def get_training_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Extract training configuration from the full configuration.
+    Extract training-specific configuration.
     
     Args:
-        config (Dict[str, Any]): Full configuration dictionary.
+        config: Full configuration dictionary
         
     Returns:
-        Dict[str, Any]: Training configuration section.
+        Training configuration dictionary
     """
     if 'training' not in config:
-        logger.warning("Training configuration section not found in config")
-        return {}
+        raise KeyError("Training configuration not found in config file")
     
     return config['training']
 
 def get_data_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Extract data configuration from the full configuration.
+    Extract data-specific configuration.
     
     Args:
-        config (Dict[str, Any]): Full configuration dictionary.
+        config: Full configuration dictionary
         
     Returns:
-        Dict[str, Any]: Data configuration section.
+        Data configuration dictionary
     """
     if 'data' not in config:
-        logger.warning("Data configuration section not found in config")
-        return {}
+        raise KeyError("Data configuration not found in config file")
     
     return config['data']
+
+def get_output_config(config: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extract output-specific configuration.
+    
+    Args:
+        config: Full configuration dictionary
+        
+    Returns:
+        Output configuration dictionary
+    """
+    if 'output' not in config:
+        raise KeyError("Output configuration not found in config file")
+    
+    return config['output']
 
 def get_inference_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """
