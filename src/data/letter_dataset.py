@@ -7,7 +7,6 @@ from typing import Tuple, Optional, List
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
-import numpy as np
 import logging
 
 # Configure logging
