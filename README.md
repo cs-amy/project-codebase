@@ -1,15 +1,18 @@
 # Enhancing OCR Accuracy Through CNN-Based Deobfuscation of Adversarial Text
 
 ## Overview
-This is an MSc Computer Science project that implements a CNN-based deobfuscation system as a preprocessing step for Optical Character Recognition (OCR). The system is designed to counter adversarial text obfuscation techniques, where characters are deliberately transformed to confuse automated recognition while preserving human readability.
+
+This is an MSc Computer Science project that implements a CNN-based deobfuscation model for letter classification (which can be extended to word classification in the future). The system is designed to counter adversarial text obfuscation techniques, where characters are deliberately transformed to confuse automated recognition while preserving human readability.
 
 Common obfuscation techniques include:
+
 - Replacing letters with look-alike characters (e.g., '@' for 'a', '0' for 'o')
 - Using characters from other scripts or alphabets
 - Using symbols that visually resemble standard characters
 - Inserting zero-width spaces or other invisible characters
 
 ### The Project at a Glance
+
 This project focuses on improving Optical Character Recognition (OCR) accuracy by tackling the challenge of adversarial text obfuscation. Here's a comprehensive overview:
 
 **Core Problem:**
@@ -17,6 +20,7 @@ The project addresses a significant challenge in text recognition systems: delib
 
 **Proposed Solution:**
 The project implements a novel two-stage approach:
+
 1. A CNN-based deobfuscation system as a preprocessing step
 2. Traditional OCR (Tesseract) for final text recognition
 
@@ -24,11 +28,13 @@ The key innovation is using deep learning (specifically CNNs) to "normalize" obf
 
 **Project Implementation:**
 The project is being developed in phases:
+
 - **Phase 1 (Current)**: Focusing on single-character deobfuscation
 - **Phase 2 (Planned)**: Extending to word-level deobfuscation
 
 **Dataset:**
 The project uses a comprehensive dataset consisting of:
+
 - Regular characters: ~19,000 images
 - Obfuscated characters: ~19,400 images
 - Split 80/20 for training/testing
@@ -36,6 +42,7 @@ The project uses a comprehensive dataset consisting of:
 - Includes both computer-generated and handwritten samples
 
 **Technical Architecture:**
+
 - Uses PyTorch for deep learning implementation
 - Implements a CNN-based architecture for deobfuscation
 - Includes comprehensive training, evaluation, and inference pipelines
@@ -44,12 +51,14 @@ The project uses a comprehensive dataset consisting of:
 
 **Academic Foundation:**
 The project builds on recent research in adversarial text and OCR robustness, citing works from:
+
 - Akhtar et al. (2022) on adversarial text obfuscation attacks
 - Song and Shmatikov (2018) on fooling OCR systems
 - Imam et al. (2022) on enhancing OCR robustness
 
 **Practical Applications:**
 This research has potentially significant real-world applications in:
+
 - Content moderation systems
 - Security measures
 - Automated data extraction
@@ -57,22 +66,27 @@ This research has potentially significant real-world applications in:
 - Digital forensics
 
 ## Problem Statement
+
 OCR systems face challenges from adversarial text obfuscation—deliberate transformations that confuse automated recognition while preserving human readability. These manipulations hinder accurate text extraction, reducing the effectiveness of security measures, content moderation, and automated data extraction systems.
 
 ## Approach
+
 Our approach employs a Convolutional Neural Network (CNN) as a preprocessing step before applying traditional OCR (Tesseract). The deobfuscation CNN converts obfuscated text images to their standard forms, enabling more accurate recognition.
 
 The project provides a complete pipeline for:
+
 1. Generating datasets of obfuscated and standard character images
 2. Training CNN models to convert obfuscated images to standard form
 3. Evaluating model performance
 4. Running inference on new images
 
 The implementation is divided into two stages:
+
 1. **Single-letter deobfuscation**: Converting individual obfuscated characters to their standard forms
 2. **Word-level deobfuscation**: Extending the approach to handle complete words
 
 ## Project Structure
+
 ```
 project-codebase/
 ├── configs/          # Configuration files for models and training
@@ -122,6 +136,7 @@ project-codebase/
 ### Installation
 
 1. Clone the repository:
+
    ```bash
    # Clone the repository
    git clone https://github.com/cs-amy/project-codebase.git
@@ -129,11 +144,13 @@ project-codebase/
    ```
 
 2. Create and activate a virtual environment (recommended):
+
    ```bash
    python3.9 -m venv .venv
-   source .venv/bin/activate 
+   source .venv/bin/activate
    # On Windows, use: .venv/Scripts/activate (CMD) or .venv/Scripts/Activate.ps1 (Powershell)
    ```
+
    You may find this guide useful: [How to set up virtual environments](https://www.freecodecamp.org/news/how-to-setup-virtual-environments-in-python/)
 
 3. Install dependencies:
@@ -142,6 +159,7 @@ project-codebase/
    ```
 
 ## Usage
+
 We are in **Phase 1** of the project, concerned with character image recognition
 
 ### Character Dataset
@@ -151,6 +169,7 @@ The regular character dataset used in this project can be obtained from the foll
 The original dataset can be found in the Mondragon Unibertsitatea Repository: [https://gitlab.danz.eus/datasharing/ski4spam](https://gitlab.danz.eus/datasharing/ski4spam)
 
 The training dataset consists of:
+
 - Alphabetic letters (a-z) written using different fonts and styles (regular, cursive, bold, cursive+bold)
 - Handwritten letters: English handwriting from the Chars74k dataset [2] which is available at http://www.ee.surrey.ac.uk/CVSSP/demos/chars74k/.
 
@@ -165,12 +184,15 @@ The regular image datasets have been conceived and developed by The Data Analysi
 #### Dataset Statistics
 
 Our current dataset contains:
+
 - **Total Images:** 38,366 PNG files
 - **Regular Character Images:** 18,981 images (49.4% of total)
 - **Obfuscated Character Images:** 19,385 images (50.6% of total)
 
 #### Train/Test Splits
+
 - **Regular Characters:**
+
   - Training: 15,190 images (80%)
   - Test: 3,791 images (20%)
   - Train/Test Ratio: 4.00:1
@@ -181,17 +203,21 @@ Our current dataset contains:
   - Train/Test Ratio: 4.00:1
 
 #### Character Distribution
+
 - **Regular Training Set:** 500-700 images per character
 - **Obfuscated Training Set:** 500-700 images per character
 
 #### Font Information
+
 The dataset uses a variety of fonts:
+
 - **Regular Character Fonts:** 164 distinct fonts
 - **Obfuscated Character Fonts:** 73 distinct fonts
 
 #### Dataset Organization
 
 The dataset is organized as follows:
+
 ```
 data/
 ├── characters/
@@ -244,6 +270,7 @@ python3.9 scripts/process_files.py --directory ./data/characters --recursive
 ```
 
 This will:
+
 1. Remove all non-PNG files (including .DS_Store files, on MacOS)
 2. Rename all PNG files to a three-digit numerical format (001.png, 002.png, etc.)
 3. Process all subdirectories in the same manner, recursively
@@ -253,55 +280,60 @@ This will:
 The project includes several utility scripts for data preparation and model operation:
 
 - **process_files.py**: A utility script for cleaning up and organizing image directories. It removes non-PNG files (including .DS_Store files) and renames PNG files to a consistent three-digit numerical format (e.g., 001.png, 002.png). Can process directories recursively.
+
   ```bash
   # Process a single directory
   python3.9 scripts/process_files.py --directory ./data/characters/regular
-  
+
   # Process directory recursively
   python3.9 scripts/process_files.py --directory ./data/characters --recursive
-  
+
   # Process with sorting enabled
   python3.9 scripts/process_files.py --directory ./data/characters --recursive --sort
   ```
 
 - **count_character_files.py**: A script that analyzes and reports statistics about character image files in the dataset. It counts files in each character directory (a-z) for both regular and obfuscated datasets, and can display results in either a detailed format or a table format.
+
   ```bash
   # Display in default format
   python3.9 scripts/count_character_files.py
-  
+
   # Display in table format
   python3.9 scripts/count_character_files.py --table
   ```
 
 - **split_dataset.py**: A utility for creating a train/test split for the character dataset. It moves a portion of images from train to test directory while maintaining the same directory structure. The script processes each character directory separately to maintain balanced splits.
+
   ```bash
   # Split with default 80/20 ratio
   python3.9 scripts/split_dataset.py --data_dir data/characters/regular
-  
+
   # Split with custom test ratio
   python3.9 scripts/split_dataset.py --data_dir data/characters/regular --test_ratio 0.25
-  
+
   # Split with specific random seed
   python3.9 scripts/split_dataset.py --data_dir data/characters/regular --seed 42
   ```
 
 - **remove_fonts.py**: A script for removing obfuscated character images that use specific fonts. It searches through the obfuscated dataset and deletes images that contain any of the specified font names in their filenames. The script processes both train and test directories.
+
   ```bash
   # Remove default list of fonts
   python3.9 scripts/remove_fonts.py
-  
+
   # Remove specific fonts
   python3.9 scripts/remove_fonts.py --fonts_to_remove "Arial" "Times New Roman"
   ```
 
 - **extract_fonts.py**: A utility that extracts and compiles a list of all fonts used in the regular character dataset. It parses the filenames of images, extracts font information, and saves a list of unique fonts to a file.
+
   ```bash
   # Extract fonts from default directory
   python3.9 scripts/extract_fonts.py
-  
+
   # Extract fonts from specific directory
   python3.9 scripts/extract_fonts.py --data_dir data/characters/regular/train
-  
+
   # Extract fonts and save to specific file
   python3.9 scripts/extract_fonts.py --output_file fonts_regular.txt
   ```
@@ -313,11 +345,14 @@ The project uses a deep Convolutional Neural Network (CNN) specifically designed
 #### Network Structure
 
 **Input Layer**
+
 - Accepts 28x28x1 grayscale images
 - Normalized pixel values in range [0, 1]
 
 **Feature Extraction Blocks**
+
 1. **First Convolutional Block** (Input → 32 channels)
+
    - Two Conv2D layers (3x3 kernel, padding=1)
    - Batch Normalization after each conv
    - ReLU activation
@@ -326,6 +361,7 @@ The project uses a deep Convolutional Neural Network (CNN) specifically designed
    - Output: 14x14x32
 
 2. **Second Convolutional Block** (32 → 64 channels)
+
    - Two Conv2D layers (3x3 kernel, padding=1)
    - Batch Normalization after each conv
    - ReLU activation
@@ -342,16 +378,20 @@ The project uses a deep Convolutional Neural Network (CNN) specifically designed
    - Output: 3x3x128
 
 **Classification Layers**
+
 1. **Flatten Layer**
+
    - Converts 3x3x128 feature maps to 1152-dimensional vector
 
 2. **First Dense Block** (1152 → 512)
+
    - Linear transformation
    - Batch Normalization
    - ReLU activation
    - Dropout (rate=0.5)
 
 3. **Second Dense Block** (512 → 256)
+
    - Linear transformation
    - Batch Normalization
    - ReLU activation
@@ -366,11 +406,13 @@ The project uses a deep Convolutional Neural Network (CNN) specifically designed
 #### Key Design Features
 
 1. **Progressive Feature Extraction**
+
    - Gradually increases feature complexity (32 → 64 → 128 channels)
    - Systematic spatial reduction (28x28 → 14x14 → 7x7 → 3x3)
    - Maintains spatial information through padding
 
 2. **Regularization Strategy**
+
    - Batch Normalization for stable training
    - Progressive Dropout:
      - Light in early layers (0.25)
@@ -421,38 +463,16 @@ nn.Sequential(
 
 ### Training a Model
 
-#### Test Training
-Before running a full training session, it's recommended to run a test training to verify the entire pipeline:
+#### Training on Google Colab
 
-```bash
-python3.9 src/train/test_training.py
-```
+Important Note: It is **highly** recommended to run the training notebook (`notebooks/colab_train_model.ipynb`) on Google Colab, rather than try to run the training script locally. This is due to the large size of the dataset and the computational resources required to train the model. You can download the entire training and testing dataset from Google Drive (link provided in the notebook) and use it for training on Colab.
 
-The test training script will:
-1. Create a small test dataset (100 samples per class for training, 20 for testing)
-2. Set up a test environment with proper directory structure
-3. Modify the configuration for quick testing:
-   - Reduced epochs (5)
-   - Smaller batch size (32)
-   - Shorter early stopping patience
-   - Separate output directory
-4. Run a complete training cycle with all components
-
-This helps verify:
-- Data loading and preprocessing
-- Model initialization
-- Training loop functionality
-- Checkpoint saving
-- Memory usage
-- GPU/CPU utilization
-
-Test results will be saved in `outputs/test_runs/` with a timestamp, allowing you to inspect the training artifacts without interfering with your main training outputs.
-
-#### Full Training
+#### Training Locally
 
 To train a model, you'll need to:
 
 1. First ensure your data is properly organized in the `data/characters` directory:
+
 ```
 data/characters/
 ├── regular/
@@ -464,6 +484,7 @@ data/characters/
 ```
 
 2. Run the training script:
+
 ```bash
 python3.9 src/train/train.py
 ```
@@ -471,18 +492,21 @@ python3.9 src/train/train.py
 The training process will:
 
 1. **Data Loading**:
+
    - Load both regular and obfuscated character datasets
    - Apply data augmentation for training data (random rotation, affine transformations)
    - Normalize images to [0, 1] range
    - Convert images to grayscale
 
 2. **Model Training**:
+
    - Train the model for the specified number of epochs
    - Use Adam optimizer with configurable learning rate
    - Apply learning rate scheduling (ReduceLROnPlateau)
    - Implement early stopping to prevent overfitting
 
 3. **Monitoring and Visualization**:
+
    - Display real-time progress bars with loss and accuracy
    - Log training metrics after each epoch
    - Generate training history plots (loss and accuracy curves)
@@ -495,6 +519,7 @@ The training process will:
    - Save training history and optimizer state
 
 The training outputs will be saved in the specified output directory:
+
 ```
 outputs/letter_classifier/
 ├── best_model.pth           # Best model based on validation loss
@@ -504,6 +529,7 @@ outputs/letter_classifier/
 ```
 
 Training progress will be displayed in real-time:
+
 ```
 Loading datasets...
 - Regular dataset: 18,981 images
@@ -533,6 +559,7 @@ Learning Rate: 0.001000
 ```
 
 The training configuration can be modified in `configs/train_config.yaml`. Key settings include:
+
 - Dataset paths and image size
 - Training parameters (epochs, batch size, learning rate)
 - Learning rate scheduler settings
@@ -540,11 +567,13 @@ The training configuration can be modified in `configs/train_config.yaml`. Key s
 - Data augmentation parameters
 
 Training will automatically stop if:
+
 - The specified number of epochs is reached
 - Early stopping is triggered (no improvement for N epochs)
 - The minimum learning rate is reached
 
 After training completes, you'll find:
+
 - The best model saved as `best_model.pth`
 - Training history plots showing loss and accuracy curves
 - A final confusion matrix with per-character accuracy
@@ -559,6 +588,7 @@ python3.9 src/evaluate/evaluate.py --model_path outputs/letter_classifier/best_m
 ```
 
 Options:
+
 - `--model_path`: Path to the trained model checkpoint
 - `--config`: Path to the model config file
 - `--data_dir`: Path to the dataset directory
@@ -567,6 +597,7 @@ Options:
 - `--gpu`: Use GPU for evaluation
 
 The evaluation script will:
+
 1. Load the trained model
 2. Evaluate on the test dataset
 3. Generate and save:
@@ -584,6 +615,7 @@ python3.9 src/inference/inference.py --model_path outputs/letter_classifier/best
 ```
 
 Options:
+
 - `--model_path`: Path to the trained model checkpoint
 - `--config`: Path to the model config file
 - `--input`: Path to input image or directory of images
@@ -591,6 +623,7 @@ Options:
 - `--gpu`: Use GPU for inference
 
 The inference script will:
+
 1. Process single images or entire directories
 2. Generate predictions for each image
 3. Save results including:
@@ -604,6 +637,7 @@ The inference script will:
 The project includes comprehensive unit tests for all major components. The tests are organized in the `tests/` directory and use a centralized test configuration.
 
 #### Test Structure
+
 ```
 tests/
 ├── test_config.yaml        # Centralized test configuration
@@ -616,7 +650,9 @@ tests/
 ```
 
 #### Test Configuration
+
 The test configuration file (`test_config.yaml`) contains settings for:
+
 - Model parameters (input channels, number of classes, dropout rates)
 - Data loader settings (batch size, augmentation, test characters)
 - Training parameters (epochs, learning rate, early stopping)
@@ -628,16 +664,19 @@ The test configuration file (`test_config.yaml`) contains settings for:
 #### Running Tests
 
 1. Run all tests:
+
 ```bash
 python -m unittest discover tests/
 ```
 
 2. Run specific test file:
+
 ```bash
 python -m unittest tests/test_model.py
 ```
 
 3. Run with coverage report:
+
 ```bash
 coverage run -m unittest discover tests/
 coverage report
@@ -646,6 +685,7 @@ coverage report
 #### Test Categories
 
 1. **Data Loader Tests**
+
    - Dataset initialization
    - Data augmentation
    - Character mapping
@@ -653,6 +693,7 @@ coverage report
    - Error handling
 
 2. **Model Tests**
+
    - Architecture initialization
    - Forward pass
    - Gradient flow
@@ -660,6 +701,7 @@ coverage report
    - Dropout behavior
 
 3. **Trainer Tests**
+
    - Training loop
    - Validation
    - Checkpointing
@@ -667,6 +709,7 @@ coverage report
    - Learning rate scheduling
 
 4. **Evaluation Tests**
+
    - Confusion matrix generation
    - Accuracy calculation
    - Per-class metrics
@@ -683,6 +726,7 @@ coverage report
 #### Test Utilities
 
 The `test_utils.py` module provides common utilities for tests:
+
 - `load_test_config()`: Load test configuration
 - `setup_test_environment()`: Set up test environment with random seeds
 - `get_test_model()`: Create test model instance
@@ -692,6 +736,7 @@ The `test_utils.py` module provides common utilities for tests:
 #### Writing New Tests
 
 When adding new tests:
+
 1. Use the test configuration for parameters
 2. Follow the existing test structure
 3. Include proper setup and teardown
@@ -700,18 +745,19 @@ When adding new tests:
 6. Use the test utilities where appropriate
 
 Example:
+
 ```python
 def test_new_feature(self):
     """Test new feature functionality."""
     # Use configuration
     param = self.config['feature']['param']
-    
+
     # Use test utilities
     test_data = create_test_image(self.config)
-    
+
     # Test the feature
     result = self.feature(test_data, param)
-    
+
     # Assert expected behavior
     self.assertIsNotNone(result)
     self.assertEqual(result.shape, expected_shape)
@@ -727,11 +773,12 @@ The model configuration is specified in YAML files in the `configs` directory. T
 - **Output**: Directory settings, checkpoint frequency
 
 Example:
+
 ```yaml
 model:
   architecture: "LetterClassifierCNN"
-  input_shape: [28, 28, 1]  # Height, Width, Channels
-  num_classes: 26  # a-z
+  input_shape: [28, 28, 1] # Height, Width, Channels
+  num_classes: 26 # a-z
   dropout_rate: 0.5
 
 training:
@@ -781,12 +828,14 @@ output:
 The system is evaluated using multiple metrics and approaches:
 
 1. **Model Performance Metrics**:
+
    - Classification accuracy (overall and per-character)
    - Loss curves (training and validation)
    - Confusion matrix
    - Learning rate progression
 
 2. **OCR Pipeline Comparison**:
+
    - Direct OCR on obfuscated text
    - OCR after CNN deobfuscation
    - Character-level accuracy comparison
@@ -799,6 +848,7 @@ The system is evaluated using multiple metrics and approaches:
    - Learning rate schedules
 
 Evaluation results are saved in the specified output directory:
+
 ```
 outputs/letter_classifier/
 ├── best_model.pth           # Best model based on validation loss
