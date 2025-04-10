@@ -870,7 +870,7 @@ This project builds on research in adversarial text obfuscation and OCR robustne
 
 ## License
 
-N/A
+This project is licensed under the MIT License. See the LICENSE file for details.
 
 ## Contributors
 
