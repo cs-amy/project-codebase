@@ -147,31 +147,4 @@ def train(config: Dict):
     if resume_training(trainer, checkpoint_path):
         console.print("[green]Successfully resumed training from checkpoint[/green]")
 
-    console.print("\n[bold cyan]Starting training...[/bold cyan]")
-    # Training loop with simple console prints
-    for epoch in range(1, training_config["epochs"] + 1):
-        # Train
-        train_loss, train_acc = trainer.train_epoch()
-        # Validate
-        val_loss, val_acc = trainer.validate()
-
-        # Print epoch metrics
-        console.print(
-            f"Epoch {epoch}/{training_config['epochs']}: "
-            f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}% | "
-            f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}% | "
-            f"LR: {trainer.optimizer.param_groups[0]['lr']:.6f}"
-        )
-
-        # Save checkpoint every 5 epochs
-        if epoch % training_config.get("save_frequency", 5) == 0:
-            trainer.save_checkpoint(epoch)
-            console.print(f"[green]Checkpoint saved at epoch {epoch}[/green]")
-
-    # Save final model and create plots
-    trainer.save_checkpoint(epoch)
-    trainer.plot_training_history()
-    trainer.plot_confusion_matrix()
-
-    console.print("\n[bold green]Training completed![/bold green]")
-    console.print(f"Results saved to: {output_dir}")
+    trainer.train(training_config["epochs"])
