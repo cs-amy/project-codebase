@@ -4,7 +4,6 @@ This module contains the runner function for training the letter classifier mode
 
 import os
 import torch
-import yaml
 from datetime import datetime
 from pathlib import Path
 from typing import Dict

@@ -210,7 +210,7 @@ class ModelTrainer:
         
         plt.tight_layout()
         plt.savefig(self.output_dir / 'training_history.png')
-        plt.close()
+        plt.show()
     
     def plot_confusion_matrix(self) -> None:
         """Plot and save confusion matrix with character labels."""
@@ -252,7 +252,7 @@ class ModelTrainer:
         
         # Save figure with high DPI
         plt.savefig(self.output_dir / 'confusion_matrix.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        plt.show()
         
         # Log per-character accuracy
         char_acc = cm.diagonal() / cm.sum(axis=1)

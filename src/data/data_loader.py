@@ -4,10 +4,12 @@ Data loader module for loading and processing image pairs for model training.
 
 from pathlib import Path
 from typing import Dict, Tuple
+import matplotlib.pyplot as plt
 from rich.console import Console
 from src.models.character_dataset import CharacterDataset
-from torch.utils.data import DataLoader, ConcatDataset
 import torch
+
+from torch.utils.data import DataLoader, ConcatDataset
 
 # Initialize rich console
 console = Console()
@@ -47,6 +49,24 @@ def validate_data_directory(data_dir: Path) -> None:
         full_path = data_dir / dir_path
         num_files = len(list(full_path.glob("**/*.png")))
         console.print(f"- {dir_path}: {num_files} PNG files")
+
+def show_images(dataset, title):
+    """
+    Display a grid of images from the dataset.
+    Args:
+        dataset: Dataset object containing images and labels
+        title: Title for the plot
+    """
+    if len(dataset) < 5:
+        raise ValueError("Dataset must contain at least 5 images to display.")
+    fig, axes = plt.subplots(1, 5, figsize=(15, 3))
+    for i in range(5):
+        img, label = dataset[i]
+        axes[i].imshow(img.permute(1, 2, 0).numpy())
+        axes[i].set_title(f"Label: {label}")
+        axes[i].axis("off")
+    plt.suptitle(title)
+    plt.show()
 
 
 def get_data_loaders(
@@ -113,6 +133,11 @@ def get_data_loaders(
     train_length = int(0.8 * len(train_dataset))
     val_length = len(train_dataset) - train_length
     train_subset, val_subset = torch.utils.data.random_split(train_dataset, [train_length, val_length])
+
+    # Show some of the images for each subset
+    show_images(train_subset, "Training Subset")
+    show_images(val_subset, "Validation Subset")
+    show_images(test_dataset, "Test Subset")    
 
     # Create data loaders for each split
     train_loader = DataLoader(
