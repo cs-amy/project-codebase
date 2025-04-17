@@ -57,10 +57,10 @@ def show_images(dataset, title):
         dataset: Dataset object containing images and labels
         title: Title for the plot
     """
-    if len(dataset) < 5:
-        raise ValueError("Dataset must contain at least 5 images to display.")
-    fig, axes = plt.subplots(1, 5, figsize=(15, 3))
-    for i in range(5):
+    if len(dataset) < 3:
+        raise ValueError("Dataset must contain at least 3 images to display.")
+    fig, axes = plt.subplots(1, 3, figsize=(15, 3))
+    for i in range(3):
         img, label = dataset[i]
         axes[i].imshow(img.permute(1, 2, 0).numpy())
         axes[i].set_title(f"Label: {label}")
