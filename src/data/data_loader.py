@@ -7,6 +7,7 @@ from typing import Dict, Tuple
 from rich.console import Console
 from torch.utils.data import DataLoader, ConcatDataset
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 import torch
 
 from src.models.character_dataset import CharacterDataset
@@ -59,15 +60,12 @@ def show_images(dataset, title):
     """
     if len(dataset) < 3:
         raise ValueError("Dataset must contain at least 3 images to display.")
-    fig, axes = plt.subplots(1, 3, figsize=(15, 3))
+    
     for i in range(3):
-        img, label = dataset[i]
-        axes[i].imshow(img.permute(1, 2, 0).numpy())
-        axes[i].set_title(f"Label: {label}")
-        axes[i].axis("off")
-    plt.suptitle(title)
-    plt.show()
-
+        raw_img, label = dataset[i]
+        img = mpimg.imread(raw_img)
+        imgplot = plt.imshow(img)
+        plt.show()
 
 def get_data_loaders(
     data_dir: str | Path,
