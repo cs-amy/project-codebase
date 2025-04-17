@@ -223,8 +223,8 @@ class ModelTrainer:
                 data = data.to(self.device)
                 output = self.model(data)
                 _, predicted = output.max(1)
-                all_preds.extend(predicted.cpu().numpy())
-                all_targets.extend(target.numpy())
+                all_preds.extend(predicted.cpu().detach().numpy())
+                all_targets.extend(target.cpu().detach().numpy())
         
         cm = confusion_matrix(all_targets, all_preds)
         
