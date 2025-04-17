@@ -339,8 +339,8 @@ class ModelTrainer:
                 self.save_checkpoint(epoch, is_best)
             
             # Plot confusion matrix every 10 epochs
-            if epoch % 10 == 0:
-                self.plot_confusion_matrix()
+            # if epoch % 10 == 0:
+                # self.plot_confusion_matrix()
             
             # Early stopping
             if self.patience_counter >= self.early_stopping_patience:
@@ -349,7 +349,7 @@ class ModelTrainer:
         
         # Save final plots and checkpoint
         self.plot_training_history()
-        self.plot_confusion_matrix()
+        # self.plot_confusion_matrix()
         self.save_checkpoint(num_epochs)
         
         console.print("[green]Training completed![/green]")
