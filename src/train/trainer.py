@@ -20,7 +20,6 @@ from src.data.data_loader import CharacterDataset
 
 console = Console()
 
-
 class ModelTrainer:
     """Trainer class for the character classification model."""
     
@@ -354,4 +353,3 @@ class ModelTrainer:
         self.save_checkpoint(num_epochs)
         
         console.print("[green]Training completed![/green]")
-    

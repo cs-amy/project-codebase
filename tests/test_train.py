@@ -223,5 +223,26 @@ class TestModelTrainer(unittest.TestCase):
         # Verify the loaded epoch
         self.assertEqual(epoch, 1)
 
+    def test_save_model(self):
+        """Test saving model state dictionary without training state."""
+        # Create a test model path
+        model_path = self.output_dir / "test_model.pth"
+        
+        # Save the model
+        self.trainer.save_model(model_path)
+        
+        # Verify the file exists
+        self.assertTrue(model_path.exists())
+        
+        # Load the saved model and verify it's just the state dict
+        saved_state = torch.load(model_path)
+        self.assertIsInstance(saved_state, dict)
+        
+        # Verify it's a state dict (should have layer parameters) and not a checkpoint
+        self.assertIn('layers.0.weight', saved_state)
+        self.assertNotIn('optimizer_state_dict', saved_state)
+        self.assertNotIn('scheduler_state_dict', saved_state)
+        self.assertNotIn('history', saved_state)
+
 if __name__ == '__main__':
     unittest.main()

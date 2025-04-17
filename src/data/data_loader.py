@@ -5,10 +5,9 @@ Data loader module for loading and processing image pairs for model training.
 from pathlib import Path
 from typing import Dict, Tuple
 from rich.console import Console
-# PyTorch imports
 from src.models.character_dataset import CharacterDataset
-import torch
 from torch.utils.data import DataLoader, ConcatDataset
+import torch
 
 # Initialize rich console
 console = Console()
@@ -55,7 +54,8 @@ def get_data_loaders(
     batch_size: int = 32,
     image_size: Tuple[int, int] = (28, 28),
     num_workers: int = 4,
-    augment: bool = True
+    augment: bool = True,
+    limit_train_samples: int = None
 ) -> Dict[str, DataLoader]:
     """
     Create data loaders for training, validation, and testing.
@@ -66,6 +66,7 @@ def get_data_loaders(
         image_size: Target size for images
         num_workers: Number of worker processes for data loading
         augment: Whether to use data augmentation (applied in training mode)
+        limit_train_samples: Optional limit for the number of training samples
 
     Returns:
         Dictionary containing train, val, and test data loaders.
@@ -103,16 +104,15 @@ def get_data_loaders(
     train_dataset = ConcatDataset([train_regular, train_obfuscated])
     test_dataset = ConcatDataset([test_regular, test_obfuscated])
 
-    # Create train/validation split (80/20) on the training dataset
+    # Limit the number of samples in the training dataset if requested
+    if limit_train_samples is not None and limit_train_samples < len(train_dataset):
+        indices = torch.randperm(len(train_dataset))[:limit_train_samples]
+        train_dataset = torch.utils.data.Subset(train_dataset, indices)
+
+    # Create train/validation split (80/20) on the (possibly limited) training dataset
     train_length = int(0.8 * len(train_dataset))
     val_length = len(train_dataset) - train_length
     train_subset, val_subset = torch.utils.data.random_split(train_dataset, [train_length, val_length])
-
-    # Log dataset statistics
-    console.print("[green]Combined dataset statistics:[/green]")
-    console.print(f"- Training set: {len(train_subset)} images")
-    console.print(f"- Validation set: {len(val_subset)} images")
-    console.print(f"- Test set: {len(test_dataset)} images")
 
     # Create data loaders for each split
     train_loader = DataLoader(

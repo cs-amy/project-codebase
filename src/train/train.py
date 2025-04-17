@@ -89,9 +89,9 @@ def train(config: Dict):
     output_dir = Path("outputs/letter_classifier") / timestamp
     os.makedirs(output_dir, exist_ok=True)
 
-    # Save current config for reproducibility
-    with open(output_dir / "config.yaml", "w") as f:
-        yaml.dump(config, f, default_flow_style=False)
+    # Save current config for reproducibility (optional)
+    # with open(output_dir / "config.yaml", "w") as f:
+    #     yaml.dump(config, f, default_flow_style=False)
 
     # Calculate optimal batch size based on image dimensions
     optimal_batch_size = get_optimal_batch_size(model_config["input_shape"][:2])
@@ -103,7 +103,8 @@ def train(config: Dict):
 
     # Create data loaders
     console.print("\n[bold cyan]Loading datasets...[/bold cyan]")
-    # Assuming get_data_loaders is defined elsewhere
+    # Assuming get_data_loaders is defined elsewhere 
+    # (This assumes our data is stored in Google Drive)
     data_loaders = get_data_loaders(
         data_dir="/content/drive/MyDrive/MScProject/data/characters",
         batch_size=training_config["batch_size"],
@@ -142,9 +143,73 @@ def train(config: Dict):
         device=device
     )
 
+    # Train the model
+    trainer.train(training_config["epochs"])
+
+def test_train(config: Dict):
+    """Test function for training the model with a limited dataset."""
+    model_config = config.get("model", {})
+    training_config = config.get("training", {})
+    data_config = config.get("data", {})
+
+    # Create output directory with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = Path("outputs/letter_classifier_test") / timestamp
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Calculate optimal batch size based on image dimensions
+    optimal_batch_size = get_optimal_batch_size(model_config["input_shape"][:2])
+    if optimal_batch_size != training_config["batch_size"]:
+        console.print(
+            f"[yellow]Adjusting batch size from {training_config['batch_size']} to {optimal_batch_size} based on available memory[/yellow]"
+        )
+        training_config["batch_size"] = optimal_batch_size
+
+    # Create data loaders with limited training set
+    console.print("\n[bold cyan]Loading limited test datasets...[/bold cyan]")
+    data_loaders = get_data_loaders(
+        data_dir="/content/drive/MyDrive/MScProject/data/characters",
+        batch_size=training_config["batch_size"],
+        image_size=model_config["input_shape"][:2],
+        num_workers=4,
+        augment=data_config.get("augmentation", {}).get("use", True),
+        limit_train_samples=20  # Limit training set to 20 images
+    )
+
+    # Print dataset statistics
+    train_size = len(data_loaders["train"].dataset)
+    val_size = len(data_loaders["val"].dataset)
+    test_size = len(data_loaders["test"].dataset)
+    console.print(f"\n[green]Dataset Statistics:[/green]")
+    console.print(f"- Training set: {train_size:,} images")
+    console.print(f"- Validation set: {val_size:,} images")
+    console.print(f"- Test set: {test_size:,} images")
+    console.print(f"- Batch size: {training_config['batch_size']}")
+
+    # Create model
+    console.print("\n[bold cyan]Initializing model...[/bold cyan]")
+    model = get_model(model_config["architecture"], model_config)
+    console.print(f"- Input shape: {model_config['input_shape']}")
+    console.print(f"- Number of classes: {model_config['num_classes']}")
+    console.print(f"- Model architecture: {model_config['architecture']}")
+
+    # Set up device
+    device = setup_device()
+
+    # Create trainer
+    trainer = ModelTrainer(
+        model=model,
+        train_loader=data_loaders["train"],
+        test_loader=data_loaders["val"],
+        config=config,
+        output_dir=output_dir,
+        device=device
+    )
+
     # Optionally resume from checkpoint
     checkpoint_path = output_dir / "latest_checkpoint.pth"
     if resume_training(trainer, checkpoint_path):
         console.print("[green]Successfully resumed training from checkpoint[/green]")
 
+    # Train the model
     trainer.train(training_config["epochs"])
