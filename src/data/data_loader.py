@@ -4,12 +4,12 @@ Data loader module for loading and processing image pairs for model training.
 
 from pathlib import Path
 from typing import Dict, Tuple
-import matplotlib.pyplot as plt
 from rich.console import Console
-from src.models.character_dataset import CharacterDataset
+from torch.utils.data import DataLoader, ConcatDataset
+import matplotlib.pyplot as plt
 import torch
 
-from torch.utils.data import DataLoader, ConcatDataset
+from src.models.character_dataset import CharacterDataset
 
 # Initialize rich console
 console = Console()

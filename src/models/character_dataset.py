@@ -70,6 +70,7 @@ class CharacterDataset(Dataset):
                 continue
 
             label = self.CHAR_TO_IDX[char]
+            console.print(f"[blue]{char}: Loading images for character[/blue]")
 
             # Get all PNG images in this directory
             char_images = list(char_dir.glob("*.png"))
