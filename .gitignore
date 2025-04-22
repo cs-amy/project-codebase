@@ -4,20 +4,15 @@
 # __pycache__
 __pycache__/
 
-# .DS_Store
-.DS_Store
-
 # .env
 .env
 
 *.pyc
 *.log
 
-data/characters/regular/train/*
-data/characters/regular/test/*
-data/characters/obfuscated/train/*
-data/characters/obfuscated/test/*
-data/words/regular/train/*
-data/words/regular/test/*
-data/words/obfuscated/train/*
-data/words/obfuscated/test/*
+# data files
+data/characters
+data/words
+
+# .DS_Store
+.DS_Store
