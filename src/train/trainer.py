@@ -1,36 +1,24 @@
 """
-Trainer module for training and validating the character classification model.
+Trainer module for setting up and running the letter classification model.
 """
 
-from pathlib import Path
-from typing import Dict, Optional, Tuple
-import logging
-
-# PyTorch imports
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.utils.data import DataLoader
-
-# Visualization imports
 import matplotlib.pyplot as plt
 import seaborn as sns
+from pathlib import Path
+from typing import Dict, Optional, Tuple
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.utils.data import DataLoader
 from sklearn.metrics import confusion_matrix
 from tqdm import tqdm
+from rich.console import Console
 
-# Project imports
 from src.models.letter_classifier import LetterClassifierCNN
-from src.utils.config import load_config
 from src.data.data_loader import CharacterDataset
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
+console = Console()
 
 class ModelTrainer:
     """Trainer class for the character classification model."""
@@ -102,8 +90,8 @@ class ModelTrainer:
         # Get character mappings
         self.char_to_idx, self.idx_to_char = CharacterDataset.get_char_mapping()
         
-        logger.info(f"Initialized trainer on device: {self.device}")
-        logger.info(f"Output directory: {self.output_dir}")
+        console.print(f"[green]Initialized trainer on device: {self.device}[/green]")
+        console.print(f"[green]Output directory: {self.output_dir}[/green]")
     
     def train_epoch(self) -> Tuple[float, float]:
         """
@@ -196,7 +184,7 @@ class ModelTrainer:
         # Save best model if applicable
         if is_best:
             torch.save(checkpoint, self.best_model_path)
-            logger.info(f"Saved best model to {self.best_model_path}")
+            console.print(f"[green]Saved best model to {self.best_model_path}[/green]")
     
     def plot_training_history(self) -> None:
         """Plot and save training history."""
@@ -222,7 +210,7 @@ class ModelTrainer:
         
         plt.tight_layout()
         plt.savefig(self.output_dir / 'training_history.png')
-        plt.close()
+        plt.show()
     
     def plot_confusion_matrix(self) -> None:
         """Plot and save confusion matrix with character labels."""
@@ -235,8 +223,8 @@ class ModelTrainer:
                 data = data.to(self.device)
                 output = self.model(data)
                 _, predicted = output.max(1)
-                all_preds.extend(predicted.cpu().numpy())
-                all_targets.extend(target.numpy())
+                all_preds.extend(predicted.cpu().detach().numpy())
+                all_targets.extend(target.cpu().detach().numpy())
         
         cm = confusion_matrix(all_targets, all_preds)
         
@@ -264,13 +252,13 @@ class ModelTrainer:
         
         # Save figure with high DPI
         plt.savefig(self.output_dir / 'confusion_matrix.png', dpi=300, bbox_inches='tight')
-        plt.close()
+        plt.show()
         
         # Log per-character accuracy
         char_acc = cm.diagonal() / cm.sum(axis=1)
-        logger.info("\nPer-character accuracy:")
+        console.print("\nPer-character accuracy:")
         for i, acc in enumerate(char_acc):
-            logger.info(f"{self.idx_to_char[i]}: {acc*100:.2f}%")
+            console.print(f"{self.idx_to_char[i]}: {acc*100:.2f}%")
     
     def load_checkpoint(self, checkpoint_path: str | Path) -> int:
         """
@@ -301,8 +289,8 @@ class ModelTrainer:
         self.best_val_loss = checkpoint['best_val_loss']
         self.history = checkpoint['history']
         
-        logger.info(f"Loaded checkpoint from {checkpoint_path}")
-        logger.info(f"Resuming from epoch {checkpoint['epoch']}")
+        console.print(f"[green]Loaded checkpoint from {checkpoint_path}[/green]")
+        console.print(f"[green]Resuming from epoch {checkpoint['epoch']}[/green]")
         
         return checkpoint['epoch']
     
@@ -313,10 +301,10 @@ class ModelTrainer:
         Args:
             num_epochs: Number of epochs to train for
         """
-        logger.info("Starting training...")
+        console.print("[green]Starting training...[/green]")
         
         for epoch in range(1, num_epochs + 1):
-            logger.info(f"\nEpoch {epoch}/{num_epochs}")
+            console.print(f"\nEpoch {epoch}/{num_epochs}")
             
             # Train and validate
             train_loss, train_acc = self.train_epoch()
@@ -327,9 +315,9 @@ class ModelTrainer:
             current_lr = self.optimizer.param_groups[0]['lr']
             
             # Log metrics
-            logger.info(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
-            logger.info(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
-            logger.info(f"Learning Rate: {current_lr:.6f}")
+            console.print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
+            console.print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
+            console.print(f"Learning Rate: {current_lr:.6f}")
             
             # Update history
             self.history['train_loss'].append(train_loss)
@@ -351,54 +339,17 @@ class ModelTrainer:
                 self.save_checkpoint(epoch, is_best)
             
             # Plot confusion matrix every 10 epochs
-            if epoch % 10 == 0:
-                self.plot_confusion_matrix()
+            # if epoch % 10 == 0:
+                # self.plot_confusion_matrix()
             
             # Early stopping
             if self.patience_counter >= self.early_stopping_patience:
-                logger.info(f"Early stopping triggered after {epoch} epochs")
+                console.print(f"[green]Early stopping triggered after {epoch} epochs[/green]")
                 break
         
         # Save final plots and checkpoint
         self.plot_training_history()
-        self.plot_confusion_matrix()
+        # self.plot_confusion_matrix()
         self.save_checkpoint(num_epochs)
         
-        logger.info("Training completed!")
-
-
-def train_model(
-    model: LetterClassifierCNN,
-    train_loader: DataLoader,
-    test_loader: DataLoader,
-    config_path: str | Path,
-    output_dir: str | Path,
-    device: Optional[str] = None
-) -> None:
-    """
-    Train a model using the specified configuration.
-    
-    Args:
-        model: The model to train
-        train_loader: DataLoader for training data
-        test_loader: DataLoader for test data
-        config_path: Path to the configuration file
-        output_dir: Directory to save checkpoints and results
-        device: Device to train on ('cuda' or 'cpu')
-    """
-    # Load configuration
-    config = load_config(config_path)
-    
-    # Create trainer
-    trainer = ModelTrainer(
-        model=model,
-        train_loader=train_loader,
-        test_loader=test_loader,
-        config=config,
-        output_dir=output_dir,
-        device=device
-    )
-    
-    # Train the model
-    trainer.train(num_epochs=config['training']['epochs'])
-    
+        console.print("[green]Training completed![/green]")

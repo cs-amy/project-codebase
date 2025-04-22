@@ -5,7 +5,7 @@ CNN model architecture for character deobfuscation.
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple
 
 class LetterClassifierCNN(nn.Module):
     """
