@@ -1,0 +1,825 @@
+#---------------Notebook 1. Model for Character De-Obfuscation----------------
+#-----------------------------------------------------------------------------
+# Install dependencies
+!pip install -q tensorflow matplotlib
+# Import dependencies
+import os
+import glob
+import tensorflow as tf
+import matplotlib.pyplot as plt
+import numpy as np
+from google.colab import drive
+from tensorflow.keras import layers, models, callbacks, mixed_precision
+from sklearn.metrics import classification_report, confusion_matrix
+# Mount Drive so you can read datasets and write checkpoints
+# Link to dataset:
+# https://drive.google.com/drive/folders/1sfNG1PkmTPBe1wOSQXZmfdkvR97Hn9lk?usp=sharing
+drive.mount('/content/drive')
+# (Optional—but useful) turn on XLA JIT for extra speed
+tf.config.optimizer.set_jit(True)
+
+BATCH = 64
+IMG_SIZE = (64, 64)
+BASE_DIR="/content/drive/MyDrive/MScProject"
+CKPT_DIR=f"{BASE_DIR}/char_ckpt_best.keras"
+train_dir = f"{BASE_DIR}/data/characters/train"
+test_dir = f"{BASE_DIR}/data/characters/test"
+
+# Train dataset
+train_ds = tf.keras.preprocessing.image_dataset_from_directory(
+  train_dir,
+  labels="inferred",
+  label_mode="categorical",
+  batch_size=BATCH,
+  image_size=IMG_SIZE,
+  color_mode="grayscale",
+  validation_split=0.20,
+  subset="training",
+  seed=42
+)
+# Val dataset
+val_ds = tf.keras.preprocessing.image_dataset_from_directory(
+  train_dir,
+  labels="inferred",
+  label_mode="categorical",
+  batch_size=BATCH,
+  image_size=IMG_SIZE,
+  color_mode="grayscale",
+  validation_split=0.20,
+  subset="validation",
+  seed=42
+)
+# Test dataset
+test_ds = tf.keras.preprocessing.image_dataset_from_directory(
+  test_dir,
+  labels="inferred",
+  label_mode="categorical",
+  batch_size=BATCH,
+  image_size=IMG_SIZE,
+  color_mode="grayscale",
+  shuffle=False
+)
+
+# Utility to display examples from each set
+def show_examples(ds, ds_name, num=5):
+  # Take one batch
+  for images, labels in ds.take(1):
+    images = images.numpy()
+    labels = labels.numpy()
+    class_names = ds.class_names
+    break
+  plt.figure(figsize=(6,6))
+  for i in range(num):
+    ax = plt.subplot(3, 3, i+1)
+    img = images[i].squeeze()  # shape: (H,W) since grayscale
+    lbl = class_names[labels[i].argmax()]
+    plt.imshow(img, cmap='gray')
+    plt.title(f"{ds_name}: {lbl}")
+    plt.axis('off')
+  plt.tight_layout()
+  plt.show()
+# Display 5 examples from each split
+show_examples(train_ds, "Train")
+show_examples(val_ds, "Val")
+show_examples(test_ds, "Test")
+
+# Save dataset class names before piping the dataset through 'map'
+train_ds_class_names = test_ds.class_names
+val_ds_class_names = test_ds.class_names
+test_ds_class_names = test_ds.class_names
+# Normalize and augment datasets (only the train dataset is augmented)
+normalization = layers.Rescaling(1./255)
+aug = tf.keras.Sequential([
+  layers.RandomRotation(0.1),
+  layers.RandomZoom(0.1),
+  layers.RandomTranslation(0.1, 0.1)
+])
+train_ds = train_ds.map(lambda x,y: (aug(normalization(x)), y))
+val_ds   = val_ds.map(lambda x,y: (normalization(x), y))
+test_ds  = test_ds.map(lambda x,y: (normalization(x), y))
+
+# Define model
+# 1. Input Layer
+inputs = layers.Input(shape=(*IMG_SIZE, 1))
+# 2. (Conv + ReLU) + Pooling 1
+x = layers.Conv2D(32, 3, activation='relu')(inputs)
+x = layers.MaxPooling2D()(x)
+# 3. (Conv + ReLU) + Pooling 2
+x = layers.Conv2D(64, 3, activation='relu')(x)
+x = layers.MaxPooling2D()(x)
+# 4. (Conv + ReLU)
+x = layers.Conv2D(128, 3, activation='relu')(x)
+# 5. Flatten to Vector
+x = layers.Flatten()(x)
+# 6. (FC + ReLU) Layer
+x = layers.Dense(128, activation='relu')(x)
+# 7. Dropout Regularisation
+x = layers.Dropout(0.5)(x)
+# 8. Output Layer
+outputs = layers.Dense(26, activation='softmax')(x)
+# Construct model
+model = models.Model(inputs, outputs)
+# Show model summary
+model.summary()
+
+# Compile model
+model.compile(
+  optimizer=tf.keras.optimizers.Adam(1e-3),
+  loss='categorical_crossentropy',
+  metrics=['accuracy']
+)
+
+# Callbacks
+# 1. Checkpoint - saves the best model
+ckpt = callbacks.ModelCheckpoint(
+  filepath=CKPT_DIR,
+  save_best_only=True,
+  monitor="val_loss" # keep only the best model
+)
+# 2. Early stopping
+es = callbacks.EarlyStopping(
+  monitor="val_loss",
+  patience=6, # stop ~6 epochs after val_loss stalls
+  restore_best_weights=True
+)
+# 3. LR scheduler
+lr_s = callbacks.ReduceLROnPlateau(
+  monitor="val_loss",
+  factor=0.5,
+  patience=3, # halve LR if val_loss hasn’t improved for 3 epochs
+  min_lr=1e-6
+)
+callbacks=[ckpt, es, lr_s]
+
+# Train model
+history = model.fit(
+  train_ds,
+  validation_data=val_ds,
+  epochs=50,
+  callbacks=callbacks
+)
+
+# Load best checkpoint's weights
+model.load_weights(CKPT_DIR)
+# Test model accuracy on test dataset
+model.evaluate(test_ds)
+# Training curves
+epochs = range(1, len(history.history['loss']) + 1)
+plt.figure(figsize=(12, 4))
+# Accuracy
+plt.subplot(1, 2, 1)
+plt.plot(epochs, history.history['accuracy'],    label='train_acc')
+plt.plot(epochs, history.history['val_accuracy'],label='val_acc')
+plt.title('Accuracy')
+plt.xlabel('Epoch')
+plt.legend()
+# Loss
+plt.subplot(1, 2, 2)
+plt.plot(epochs, history.history['loss'],    label='train_loss')
+plt.plot(epochs, history.history['val_loss'],label='val_loss')
+plt.title('Loss')
+plt.xlabel('Epoch')
+plt.legend()
+
+# Gather all ground-truths and predictions
+y_true = []
+y_pred = []
+for batch_x, batch_y in test_ds:
+  preds = model.predict(batch_x)
+  y_pred.extend(np.argmax(preds, axis=1))
+  y_true.extend(np.argmax(batch_y.numpy(), axis=1))
+class_names = test_ds_class_names
+print(classification_report(y_true, y_pred, target_names=class_names))
+cm = confusion_matrix(y_true, y_pred)
+# Plot confusion matrix
+plt.figure(figsize=(10, 10))
+plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+plt.title("Confusion Matrix")
+plt.colorbar()
+tick_marks = np.arange(len(train_ds_class_names))
+plt.xticks(tick_marks, train_ds_class_names, rotation=90)
+plt.yticks(tick_marks, train_ds_class_names)
+plt.xlabel('Predicted')
+plt.ylabel('True')
+plt.tight_layout()
+plt.show()
+
+# Display misclassified examples
+images_all = np.concatenate([x.numpy() for x, y in test_ds], axis=0)
+mis_idx = [i for i, (t, p) in enumerate(zip(y_true, y_pred)) if t!=p]
+plt.figure(figsize=(9, 9))
+for i, idx in enumerate(mis_idx[:9]):
+  plt.subplot(3, 3, i+1)
+  img = images_all[idx].squeeze()
+  plt.imshow(img, cmap='gray')
+  plt.title(f"T:{class_names[y_true[idx]]} P:{class_names[y_pred[idx]]}")
+  plt.axis('off')
+plt.tight_layout()
+plt.show()
+
+
+
+
+
+#----Notebook 2. CNN Sliding-Window Model for 3-Letter Word De-Obfuscation----
+#-----------------------------------------------------------------------------
+# Install dependencies
+!pip install -q tensorflow matplotlib
+# Optional - Install font (we will use it to generate images)
+# Colab / Ubuntu repositories already ship Roboto
+!sudo apt-get -qq update
+!sudo apt-get -qq install fonts-roboto
+# Import dependencies
+import os, sys, random, itertools, pathlib, math, shutil, io, requests
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+import tqdm as tq
+from tqdm import tqdm
+from pathlib import Path
+from glob import glob
+from tensorflow.keras import layers, models, mixed_precision, backend as K
+from google.colab import drive
+from sklearn.metrics import classification_report, confusion_matrix
+from collections import defaultdict
+from PIL import Image, ImageDraw, ImageFont
+from typing import Tuple
+# 1.3 Mount Drive & define base path
+# Mount Drive so you can read datasets and write checkpoints
+# Link to Drive:
+# https://drive.google.com/drive/folders/1sfNG1PkmTPBe1wOSQXZmfdkvR97Hn9lk?usp=sharing
+drive.mount('/content/drive')
+
+# paths & constants
+BASE_PATH         = Path("/content/drive/MyDrive/MScProject")
+GLYPH_DIR         = Path(f"{BASE_PATH}/data/characters/train")
+DATA_ROOT         = Path(f"{BASE_PATH}/data/words3")
+CKPT_DIR          = f"{BASE_PATH}/words3_ckpt_best.keras"
+BATCH             = 64
+IMG_H             = IMG_W = 64
+IMG_SHAPE         = (IMG_H, IMG_W)
+PATCH_W           = IMG_W // 3
+VARIANTS_PER      = 5 # per word
+EXPECTED_CLASSES  = 26**3 # 26³ = 17,576
+FINAL_TEST_FRAC   = 0.20
+SEED              = 42
+PATCH_W           = IMG_W // 3 # 21 when IMG_W = 64
+N_VARIANTS        = 4 # number of images per class
+FRACTION          = 0.15 # 15 %
+train_dir         = DATA_ROOT / "train"
+test_dir          = DATA_ROOT / "test"
+random.seed(SEED)
+
+"""
+- Generates a single ‘train/’ directory with 17,576 class folders (AAA … ZZZ)
+- Each class contains N_VARIANTS PNG images rendered on-the-fly (no external glyph reuse)
+- Obfuscation applied per-character (leet + random spacing jitter)
+- Idempotent: if the train folder already has 17,576 classes it exits immediately
+"""
+def obfuscate_char(ch: str) -> str:
+    mode = random.choices(("plain", "leet"), weights=(0.5, 0.4, 0.1))[0]
+    if mode == "leet" and ch in LEET:
+        return random.choice(LEET[ch])
+    return ch
+def render_patch(ch: str) -> Image.Image:
+    # Return a 64×21 monochrome patch for a single (possibly obfuscated) char
+    patch = Image.new("L", (PATCH_W, IMG_H), color=255)
+    draw  = ImageDraw.Draw(patch)
+    draw.text((4, 4), obfuscate_char(ch), fill=0, font=FONT)
+    return patch
+def stitch_word(word: str, out_file: Path):
+  canvas = Image.new("L", (IMG_W, IMG_H), color=255)
+  for idx, ch in enumerate(word):
+      glyph = render_patch(ch)
+      canvas.paste(glyph, (idx * PATCH_W, 0))
+  # light horizontal jitter
+  if random.random() < 0.3:
+      dx = random.randint(-2, 2)
+      canvas = canvas.transform(canvas.size, Image.AFFINE, (1, 0, dx, 0, 1, 0))
+  canvas.save(out_file)
+AAA = train_dir / "AAA"
+dataset_ready = AAA.is_dir() and any(AAA.glob("*.png"))
+if dataset_ready:
+    print("words3/train already complete – nothing to do.")
+else:
+    # Define font
+    try:
+        FONT_PATH = "/usr/share/fonts/truetype/roboto/Roboto-Medium.ttf"
+        # A big font size makes the letters cut-off at the edges
+        # when we slice through the images,
+        # mimicking real-world scenarios where this operation
+        # may not produce clean cuts of letters
+        FONT_SIZE = 40
+        FONT = ImageFont.truetype(FONT_PATH, FONT_SIZE)
+        print("Using Roboto Medium font to generate images")
+    except Exception as e:
+        print(f"Error loading font: {e}")
+        print("Using default font to generate images")
+        FONT = ImageFont.load_default()
+    # mapping tables (uppercase only)
+    LEET = {
+      'A': ['Α', '4', 'Д', 'Ä', 'Á', 'À', 'Â', '@', 'Δ'],
+      'B': ['8', 'β', 'Β', 'В'],
+      'C': ['Ç', 'Ć', 'Č', 'С'],
+      'D': ['Ð', 'Ď'],
+      'E': ['3', 'Σ', 'Έ', 'Ε', 'Е', 'Ë', 'É', 'È', 'Ê'],
+      'F': ['Φ', 'Ƒ'],
+      'G': ['6', 'Ğ', 'Ģ', 'Γ'],
+      'H': ['Η', 'Н'],
+      'I': ['1', '|', 'Í', 'Ì', 'Î', 'Ï', 'И'],
+      'J': ['Ј'],
+      'K': ['Κ', 'К'],
+      'L': ['Ι', 'Ł', 'Ĺ', 'Л'],
+      'M': ['Μ', 'М'],
+      'N': ['Ν', 'Ń', 'Ñ', 'Н'],
+      'O': ['0', 'Θ', 'Ο', 'Ө', 'Ø', 'Ö', 'Ó', 'Ò', 'Ô'],
+      'P': ['Ρ', 'Р'],
+      'Q': ['Φ'],
+      'R': ['®', 'Я', 'Ř', 'Ŕ'],
+      'S': ['5', '$', 'Ѕ', 'Ś', 'Š'],
+      'T': ['Τ', 'Т'],
+      'U': ['Υ', 'Ц', 'Ü', 'Ú', 'Ù', 'Û'],
+      'V': ['Ѵ', 'V'],
+      'W': ['Ω', 'Ѡ', 'Ψ', 'Ш', 'Щ'],
+      'X': ['Χ', 'Ж', 'Х'],
+      'Y': ['Υ', 'Ү', 'Ý', 'Ÿ'],
+      'Z': ['Ζ', 'Ż', 'Ź', 'Ž', 'З', '2']
+    }
+    # wipe & rebuild train directory (safe for colab runs)
+    if train_dir.exists():
+        shutil.rmtree(train_dir)
+    train_dir.mkdir(parents=True, exist_ok=True)
+    # generate every word (AAA … ZZZ)
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    all_words = ["".join(tpl) for tpl in itertools.product(alphabet, repeat=3)]
+    for word in tqdm(all_words, desc="Generating train"):
+        cls_dir = train_dir / word
+        cls_dir.mkdir(parents=True, exist_ok=True)
+        for k in range(N_VARIANTS):
+            stitch_word(word, cls_dir / f"{word}_{k}.png")
+    print("Training set complete.")
+
+"""
+- Make a permanent 15% test split on Drive
+- Assumes you have a single words3/train/AAA … ZZZ/*.png structure already.
+- Creates /words3/test/AAA … ZZZ/ and MOVES files (no duplication).
+- Safe to rerun – will skip classes already processed.
+"""
+import tqdm
+AAA = test_dir / "AAA"
+dataset_ready = AAA.is_dir() and any(AAA.glob("*.png"))
+if dataset_ready:
+    print("words3/test already complete – nothing to do.")
+else:
+    test_dir.mkdir(parents=True, exist_ok=True)
+
+    # split loop
+    for cls_dir in tqdm.tqdm([d for d in train_dir.iterdir() if d.is_dir()], desc="Creating 15 % test split"):
+        tgt_cls = test_dir / cls_dir.name
+        tgt_cls.mkdir(parents=True, exist_ok=True)
+
+        # list PNGs still in train/ for this class (those already moved last run are gone)
+        imgs = list(cls_dir.glob("*.png"))
+        if not imgs: # all imgs already moved in a previous run
+            continue
+
+        # number to move: 15% rounded down, but keep ≥1 in train/
+        n_move = max(1, math.floor(len(imgs) * FRACTION))
+        n_move = min(n_move, len(imgs) - 1) # safeguard: leave ≥1
+
+        random.shuffle(imgs)
+        for img in imgs[:n_move]:
+            shutil.move(str(img), tgt_cls / img.name)
+    print("Test split ready.")
+    print("Train images:", sum(1 for _ in train_dir.rglob("*.png")))
+    print("Test images:", sum(1 for _ in test_dir.rglob("*.png")))
+
+def normalise(img, label):
+    img = tf.cast(img, tf.float32) / 255.0
+    return img, label
+
+# Train dataset
+train_ds = tf.keras.preprocessing.image_dataset_from_directory(
+    train_dir,
+    labels="inferred",
+    label_mode="categorical",
+    batch_size=BATCH,
+    image_size=IMG_SHAPE,
+    color_mode="grayscale",
+    validation_split=0.2,
+    subset="training",
+    shuffle=True,
+    seed=42
+)
+# Val dataset
+val_ds = tf.keras.preprocessing.image_dataset_from_directory(
+    train_dir,
+    labels="inferred",
+    label_mode="categorical",
+    batch_size=BATCH,
+    image_size=IMG_SHAPE,
+    color_mode="grayscale",
+    validation_split=0.2,
+    subset="validation",
+    shuffle=False,
+    seed=42
+)
+# Test dataset
+test_ds = tf.keras.preprocessing.image_dataset_from_directory(
+    test_dir,
+    labels="inferred",
+    label_mode="categorical",
+    batch_size=BATCH,
+    image_size=IMG_SHAPE,
+    color_mode="grayscale",
+    shuffle=False
+)
+
+# Generate class names for future reference
+class_names = train_ds.class_names
+# Preprocess datasets
+train_ds = (train_ds
+            .map(normalise, num_parallel_calls=tf.data.AUTOTUNE)
+            .apply(tf.data.experimental.ignore_errors())
+            .prefetch(tf.data.AUTOTUNE))
+val_ds = (val_ds
+          .map(normalise, num_parallel_calls=tf.data.AUTOTUNE)
+          .apply(tf.data.experimental.ignore_errors())
+          .prefetch(tf.data.AUTOTUNE))
+test_ds = (test_ds
+           .map(normalise, num_parallel_calls=tf.data.AUTOTUNE)
+           .apply(tf.data.experimental.ignore_errors())
+           .prefetch(tf.data.AUTOTUNE))
+
+# Utility to display examples from each set
+def show_examples(ds, ds_name, num=5):
+  # Take one batch
+  for images, labels in ds.take(1):
+      images = images.numpy()
+      labels = labels.numpy()
+      break
+
+  plt.figure(figsize=(6,6))
+
+  for i in range(num):
+      ax = plt.subplot(3, 3, i+1)
+      img = images[i].squeeze()  # shape: (H,W) since grayscale
+      lbl = class_names[labels[i].argmax()]
+      plt.imshow(img, cmap='gray')
+      plt.title(f"{ds_name}: {lbl}")
+      plt.axis('off')
+
+  plt.tight_layout()
+  plt.show()
+
+# Display 5 examples from each split
+show_examples(train_ds, "Train")
+show_examples(val_ds, "Val")
+show_examples(test_ds, "Test")
+
+base_model = models.load_model(f"{BASE_PATH}/char_cnn_ckpt_best.keras")
+base_model.trainable = False # freeze weights initially
+print("Base model frozen — params:", base_model.count_params())
+
+class UnfreezeAndFineTune(tf.keras.callbacks.Callback):
+    def __init__(self, base_model, n_blocks=1,
+                 new_lr=1e-4, patience=4):
+        super().__init__()
+        self.base_model = base_model
+        self.n_blocks = n_blocks
+        self.new_lr = new_lr
+        self.patience = patience
+        self.wait = 0
+        self.best = None
+        self.unfroze = False
+
+    def unfreeze_last_conv_blocks(self, N=1):
+        # 1) Freeze everything first
+        for layer in self.base_model.layers:
+            layer.trainable = False
+
+        # 2) Collect indices of all Conv2D layers
+        conv_idx = [idx for idx, layer in enumerate(self.base_model.layers)
+                    if isinstance(layer, tf.keras.layers.Conv2D)]
+
+        # 3) Decide which indices to unfreeze (last N)
+        if N > len(conv_idx):
+            raise ValueError(f"Model only has {len(conv_idx)} Conv2D layers, "
+                            f"cannot unfreeze {N}")
+
+        to_unfreeze = conv_idx[-N:]
+
+        # 4) Unfreeze selected Conv2D layers *and* everything that follows them
+        #    (so the gradient flows through BN / ReLU / Dense that depend on them)
+        for idx in to_unfreeze:
+            for layer in self.base_model.layers[idx:]:
+                layer.trainable = True
+
+        print(f"Unfroze {N} Conv2D block(s) starting with layer(s):",
+              [self.base_model.layers[i].name for i in to_unfreeze])
+
+    def on_epoch_end(self, epoch, logs=None):
+        current = logs.get("val_loss")
+        if current is None:
+            return
+
+        # first time: set best
+        if self.best is None:
+            self.best = current
+            return
+
+        if current < self.best:
+            self.best = current
+            self.wait = 0
+        else:
+            self.wait += 1
+
+        # when patience exceeded, unfreeze
+        if (self.wait >= self.patience) and not self.unfroze:
+            print(f"\nPatience of {self.patience} reached. Unfreezing top {self.n_blocks} block(s).")
+
+            # Unfreeze last N conv blocks
+            self.unfreeze_last_conv_blocks(N=1)
+
+            # lower LR and recompile
+            self.model.compile(
+                optimizer=tf.keras.optimizers.Adam(self.new_lr),
+                loss="categorical_crossentropy",
+                metrics=["accuracy"],
+            )
+            self.unfroze = True
+            print(f"Recompiled with lr={self.new_lr}. Now continuing training.")
+
+def extract_patch(x, idx):
+    start = idx * PATCH_W
+    return x[:, :, start:start+PATCH_W, :] # (None, 64, 21, 1)
+
+inputs = tf.keras.Input(shape=(IMG_H, IMG_W, 1))
+logits = []
+
+for i in range(3):
+    patch = layers.Lambda(lambda z, i=i: extract_patch(z, i))(inputs)
+    patch = layers.Resizing(IMG_H, IMG_H)(patch) # -> (64 x 64 x 1)
+    # Re-use frozen base_model (shared weights)
+    logits.append(base_model(patch)) # (None, 26)
+
+concat = layers.Concatenate()(logits) # (None, 78)
+
+# FC (+ ReLU) layers & dropout regularisation
+x = layers.Dense(512, activation="relu")(concat)
+x = layers.Dropout(0.5)(x)
+x = layers.Dense(256, activation="relu")(x)
+x = layers.Dropout(0.3)(x)
+
+# Output
+outputs = layers.Dense(EXPECTED_CLASSES, activation='softmax')(x)
+
+# Create model & print summary
+model = models.Model(inputs, outputs)
+model.summary()
+
+# Compile model
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(1e-3),
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+# Callbacks
+# 1. Checkpoint
+ckpt = tf.keras.callbacks.ModelCheckpoint(
+    CKPT_DIR,
+    save_best_only=True, # keep only the best model
+    monitor='val_loss'
+)
+
+# 2. Early stopping
+es = tf.keras.callbacks.EarlyStopping(
+    monitor='val_loss',
+    patience=5, # stop ~5 epochs after val_loss stalls
+    restore_best_weights=True
+)
+
+# 3. Unfreeze last N conv blocks if
+unfreeze = UnfreezeAndFineTune(
+    base_model=base_model,
+    n_blocks=1,      # how many conv-blocks to unfreeze
+    new_lr=1e-4,     # lower LR for fine-tuning
+    patience=4       # same as EarlyStopping patience
+)
+
+# 4. LR Scheduler
+lr_s = tf.keras.callbacks.ReduceLROnPlateau(
+    monitor='val_loss',
+    factor=0.5,
+    patience=2,
+    min_lr=1e-6
+)
+
+cb = [ckpt, es, unfreeze]
+
+# Train the model
+history = model.fit(
+    train_ds,
+    validation_data=val_ds,
+    epochs=30,
+    callbacks=cb
+)
+
+# (Optional) manually unfreeze deepest N conv layers and conbtinue training
+unf = UnfreezeAndFineTune(
+    base_model=base_model,
+    n_blocks=1,      # how many conv-blocks to unfreeze
+    new_lr=1e-4,     # lower LR for fine-tuning
+    patience=4       # same as EarlyStopping patience
+)
+
+unf.unfreeze_last_conv_blocks(N=1)
+model.summary()
+
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(1e-4),
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+initial_epochs = history.epoch[-1]
+history_unf = model.fit(
+    train_ds,
+    validation_data=val_ds,
+    initial_epoch=initial_epochs,
+    epochs=initial_epochs + 20,
+    callbacks=[ckpt, es, lr_s]
+)
+
+def merge_histories(h1: tf.keras.callbacks.History, h2: tf.keras.callbacks.History) -> tf.keras.callbacks.History:
+    merged = tf.keras.callbacks.History()
+    merged.history = {}
+    # assume both histories tracked the same keys
+    for k in h1.history.keys():
+        vals1 = h1.history[k]
+        vals2 = h2.history.get(k, [])
+        merged.history[k] = vals1 + vals2
+    return merged
+
+# Merge both training histories
+combined_history = merge_histories(history, history_unf)
+
+# Load best checkpoint's weights
+model.load_weights(CKPT_DIR)
+
+test_loss, test_acc = model.evaluate(test_ds)
+print(f"Test accuracy: {test_acc:.4f}")
+
+# Training curves
+epochs = range(1, len(combined_history.history['loss']) + 1)
+plt.figure(figsize=(12, 4))
+
+# Accuracy - frozen base model
+plt.subplot(1, 2, 1)
+plt.plot(epochs, combined_history.history['accuracy'],    label='train_acc')
+plt.plot(epochs, combined_history.history['val_accuracy'],label='val_acc')
+plt.title('Accuracy')
+plt.xlabel('Epoch')
+plt.legend()
+
+# Loss
+plt.subplot(1, 2, 2)
+plt.plot(epochs, combined_history.history['loss'],    label='train_loss')
+plt.plot(epochs, combined_history.history['val_loss'],label='val_loss')
+plt.title('Loss')
+plt.xlabel('Epoch')
+plt.legend()
+
+# Gather all ground-truths and predictions
+y_true = []
+y_pred = []
+for batch_x, batch_y in test_ds:
+  preds = model.predict(batch_x)
+  y_pred.extend(np.argmax(preds, axis=1))
+  y_true.extend(np.argmax(batch_y.numpy(), axis=1))
+
+cm = confusion_matrix(y_true, y_pred)
+
+# Plot confusion matrix
+plt.figure(figsize=(10, 10))
+plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+plt.title("Confusion Matrix")
+plt.colorbar()
+tick_marks = np.arange(len(class_names))
+plt.xticks(tick_marks, class_names, rotation=90)
+plt.yticks(tick_marks, class_names)
+plt.xlabel('Predicted')
+plt.ylabel('True')
+plt.tight_layout()
+plt.show()
+
+
+
+
+
+#--------------------------Notebook 3. Tesseract OCR---------------------------
+#------------------------------------------------------------------------------
+# Install / import dependencies
+!apt-get update && apt-get install -y tesseract-ocr
+!pip install -q pytesseract pillow jiwer
+import os
+import glob
+import pytesseract
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from pathlib import Path
+from google.colab import drive
+from PIL import Image
+from jiwer import wer, cer
+from tqdm import tqdm
+from collections import Counter
+# Mount Drive & define base path
+# Mount Drive so you can read datasets and write checkpoints
+# Link to Drive:
+# https://drive.google.com/drive/folders/1sfNG1PkmTPBe1wOSQXZmfdkvR97Hn9lk?usp=sharing
+drive.mount('/content/drive')
+
+# Tesseract over Character Dataset
+CHAR_TEST_DIR = "/content/drive/MyDrive/MScProject/data/characters/test"
+# Tell pytesseract to treat each image as a single character, restrict to A–Z
+TESSERACT_CONFIG = r"--psm 10 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+# Run through the dataset
+y_true, y_pred = [], []
+for true_char in sorted(os.listdir(CHAR_TEST_DIR)):
+    char_dir = Path(CHAR_TEST_DIR) / true_char
+    if not char_dir.is_dir():
+        continue
+    for img_path in char_dir.glob("*.png"):
+        img = Image.open(img_path).convert("L")
+        # optional: binarize if your glyphs need thresholding:
+        # img = img.point(lambda x: 0 if x<128 else 255, mode='1')
+        txt = pytesseract.image_to_string(img, config=TESSERACT_CONFIG)
+        pred = txt.strip().upper()
+        # take first character only (in case of noise)
+        pred = pred[0] if len(pred)>0 else ""
+        y_true.append(true_char)
+        y_pred.append(pred)
+        print(f"Label: {true_char} → Pred: {pred}")
+# Compute accuracy
+correct = sum(t==p for t,p in zip(y_true, y_pred))
+total   = len(y_true)
+acc = correct/total
+print(f"Character‐level Tesseract Accuracy: {acc*100:5.2f}%  ({correct}/{total})")
+# Build & plot a confusion matrix for the most frequent errors
+labels = sorted(set(y_true))
+cm = np.zeros((len(labels), len(labels)), dtype=int)
+idx = {c:i for i,c in enumerate(labels)}
+for t,p in zip(y_true, y_pred):
+    i, j = idx[t], idx.get(p, None)
+    if j is None:
+        # treat unknown predictions as a special “?” class
+        continue
+    cm[i, j] += 1
+plt.figure(figsize=(8,6))
+sns.heatmap(cm, xticklabels=labels, yticklabels=labels, fmt="d", cmap="Blues")
+plt.xlabel("Tesseract Predicted")
+plt.ylabel("Ground Truth")
+plt.title("Confusion Matrix on Character Test Set")
+plt.show()
+
+# Tesseract over Word Dataset
+# Configuration: test/ dir
+TEST_DIR = "/content/drive/MyDrive/MScProject/data/words3/test"
+
+# Set up Tesseract: only uppercase A–Z, single line (--psm 7)
+tess_config = r"--oem 1 --psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+# Run OCR over every image, collect predictions & ground truth
+gt_labels = []
+pred_labels = []
+
+for cls in sorted(os.listdir(TEST_DIR)):
+    cls_path = os.path.join(TEST_DIR, cls)
+    if not os.path.isdir(cls_path):
+        continue
+    for img_path in glob.glob(os.path.join(cls_path, "*.png")):
+        # ground truth is the folder name
+        gt = cls
+        # load image as grayscale
+        img = Image.open(img_path).convert("L")
+        # optional thresholding:
+        # img = img.point(lambda x: 0 if x<128 else 255, '1')
+        pred = pytesseract.image_to_string(img, config=tess_config)
+        pred = pred.strip().upper()
+
+        gt_labels.append(gt)
+        pred_labels.append(pred)
+        print(f"Label: {gt} → Pred: {pred}")
+
+# Exact-match accuracy
+exact_acc = np.mean([p == g for p, g in zip(pred_labels, gt_labels)])
+print(f"Exact match accuracy: {exact_acc:.4%}")
+
+# Average character-error rate (CER) and word-error rate (WER)
+avg_cer = np.mean([cer(g, p) for p, g in zip(pred_labels, gt_labels)])
+avg_wer = np.mean([wer(g, p) for p, g in zip(pred_labels, gt_labels)])
+print(f"Mean CER: {avg_cer:.4f}")
+print(f"Mean WER: {avg_wer:.4f}")
