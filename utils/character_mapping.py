@@ -34,7 +34,7 @@ CHAR_TO_OBFUSCATED: Dict[str, List[str]] = {
     'x': ['×', 'χ', 'ж', 'х'],
     'y': ['ү', 'γ', 'у', 'ý', 'ÿ'],
     'z': ['ʐ', 'ż', 'ź', 'ž', 'з'],
-    
+
     # Uppercase letters
     'A': ['Α', '4', 'Д', 'Ä', 'Á', 'À', 'Â'],
     'B': ['8', 'β', 'Β', 'В'],
@@ -62,7 +62,7 @@ CHAR_TO_OBFUSCATED: Dict[str, List[str]] = {
     'X': ['Χ', 'Ж', 'Х'],
     'Y': ['Υ', 'Ү', 'Ý', 'Ÿ'],
     'Z': ['Ζ', 'Ż', 'Ź', 'Ž', 'З'],
-    
+
     # Numbers
     '0': ['o', 'O', 'ο', 'О', 'ø', 'Ø'],
     '1': ['l', 'I', 'i', '|', 'L'],
@@ -87,10 +87,10 @@ for char, obfuscated_list in CHAR_TO_OBFUSCATED.items():
 def get_obfuscated_variants(char: str) -> List[str]:
     """
     Get list of possible obfuscated variants for a character.
-    
+
     Args:
         char: Standard character
-        
+
     Returns:
         List of obfuscated variants
     """
@@ -102,10 +102,10 @@ def get_obfuscated_variants(char: str) -> List[str]:
 def get_standard_character(obfuscated: str) -> str:
     """
     Get the standard character for an obfuscated variant.
-    
+
     Args:
         obfuscated: Obfuscated character
-        
+
     Returns:
         Standard character if found, otherwise the original character
     """
@@ -115,10 +115,10 @@ def get_standard_character(obfuscated: str) -> str:
 def is_obfuscated(char: str) -> bool:
     """
     Check if a character is an obfuscated variant.
-    
+
     Args:
         char: Character to check
-        
+
     Returns:
         True if the character is an obfuscated variant, False otherwise
     """
@@ -128,7 +128,7 @@ def is_obfuscated(char: str) -> bool:
 def get_all_standard_characters() -> List[str]:
     """
     Get a list of all standard characters.
-    
+
     Returns:
         List of all standard characters
     """
@@ -138,7 +138,7 @@ def get_all_standard_characters() -> List[str]:
 def get_all_obfuscated_characters() -> List[str]:
     """
     Get a list of all obfuscated characters.
-    
+
     Returns:
         List of all obfuscated characters
     """
@@ -148,10 +148,10 @@ def get_all_obfuscated_characters() -> List[str]:
 def deobfuscate_text(text: str) -> str:
     """
     Convert obfuscated text to standard text.
-    
+
     Args:
         text: Obfuscated text
-        
+
     Returns:
         Deobfuscated text
     """
@@ -161,16 +161,16 @@ def deobfuscate_text(text: str) -> str:
 def obfuscate_text(text: str, obfuscation_level: float = 0.7) -> str:
     """
     Convert standard text to obfuscated text with a given obfuscation level.
-    
+
     Args:
         text: Standard text
         obfuscation_level: Probability of obfuscating each character (0.0 to 1.0)
-        
+
     Returns:
         Obfuscated text
     """
     import random
-    
+
     obfuscated = []
     for char in text:
         if char in CHAR_TO_OBFUSCATED and random.random() < obfuscation_level:
@@ -178,5 +178,5 @@ def obfuscate_text(text: str, obfuscation_level: float = 0.7) -> str:
             obfuscated.append(random.choice(variants))
         else:
             obfuscated.append(char)
-    
-    return ''.join(obfuscated) 
+
+    return ''.join(obfuscated)
