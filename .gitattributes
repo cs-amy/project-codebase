@@ -1,3 +1,0 @@
-# Track PNG files in the data directory with Git LFS, 
-# so they don't get uploaded to the repo
-data/**/*.png filter=lfs diff=lfs merge=lfs -text
