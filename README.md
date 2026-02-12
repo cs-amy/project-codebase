@@ -35,12 +35,13 @@ The work therefore lays a practical foundation for deployable, modular defences
 that _see through_ adversarial text transformations in real-world
 moderation and OCR systems.
 
-## Data
+## Data and Inference Models
 
-The data used in this project is freely available via the following links:
+The data used in this project, as well as the trained models, are freely available via the following links:
 
-- **Character dataset:** [Drive](https://drive.google.com/drive/folders/1eUaTNW8zVjTArg0JszbCdCEq0tTdx89n?usp=drive_link 'Google Drive')
-- **Word dataset:** [Drive](https://drive.google.com/drive/folders/1kygA17GiCeCs8qTeDBEndU6TkXnEu-m7?usp=drive_link 'Google Drive')
+- Project home page (contains training data and models): [Link](https://drive.google.com/drive/folders/1sfNG1PkmTPBe1wOSQXZmfdkvR97Hn9lk)
+- **Character dataset:** [Link](https://drive.google.com/drive/folders/1eUaTNW8zVjTArg0JszbCdCEq0tTdx89n?usp=drive_link 'Google Drive')
+- **Word dataset:** [Link](https://drive.google.com/drive/folders/1kygA17GiCeCs8qTeDBEndU6TkXnEu-m7?usp=drive_link 'Google Drive')
 
 ## Running Training / Inference Pipelines
 
